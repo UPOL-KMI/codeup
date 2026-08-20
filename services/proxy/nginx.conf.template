@@ -1,0 +1,43 @@
+# Single public entrypoint for the whole stack: web-app UI, core API, and the
+# monitor websocket, all under one domain so there is only one TLS cert to manage.
+#
+# To enable HTTPS: mount your certificate/key into the container (e.g. at
+# /etc/nginx/certs/fullchain.pem and /etc/nginx/certs/privkey.pem) and uncomment
+# the "listen 443 ssl" block below, plus the HTTP->HTTPS redirect.
+
+server {
+    listen 80;
+    server_name ${APP_DOMAIN};
+
+    client_max_body_size 512M;
+
+    # listen 443 ssl;
+    # ssl_certificate     /etc/nginx/certs/fullchain.pem;
+    # ssl_certificate_key /etc/nginx/certs/privkey.pem;
+    # if ($scheme = http) { return 301 https://$host$request_uri; }
+
+    location /api/ {
+        proxy_pass http://api:80/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /ws {
+        proxy_pass http://monitor:4567;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_read_timeout 3600s;
+    }
+
+    location / {
+        proxy_pass http://web-app:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}

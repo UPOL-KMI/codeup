@@ -1,0 +1,22 @@
+clients:
+    address: "*"
+    port: 9658
+workers:
+    address: "*"
+    port: 9657
+    max_liveness: 4
+    ping_interval: 1000
+notifier:
+    address: "${API_ADDRESS}/v1/broker-reports"
+    port: ${NOTIFIER_PORT}
+    username: "${BROKER_AUTH_USER}"
+    password: "${BROKER_AUTH_PASSWORD}"
+monitor:
+    address: "${MONITOR_HOST}"
+    port: ${MONITOR_ZMQ_PORT}
+logger:
+    file: "/var/log/recodex/broker"
+    level: "${LOG_LEVEL}"
+    max-size: 1048576
+    rotations: 3
+queue_manager: "single"

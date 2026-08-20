@@ -1,0 +1,83 @@
+parameters:
+  api:
+    address: "${API_ADDRESS}"
+
+  webapp:
+    address: "${WEBAPP_ADDRESS}"
+
+  async:
+    pollingInterval: 10
+    inotify: false
+
+  fileStorage:
+    local:
+      root: %appDir%/../storage/local
+    hash:
+      root: %appDir%/../storage/hash
+
+  submissions:
+    locked: false
+
+  accessManager:
+    issuer: "%webapp.address%"
+    audience: "%webapp.address%"
+    expiration: 604800
+    invitationExpiration: 604800
+    verificationKey: "${JWT_SECRET}"
+    tokenCookieName: '${TOKEN_COOKIE_PREFIX}_accessToken'
+
+  broker:
+    address: "${BROKER_ADDRESS}"
+    auth:
+      username: "${BROKER_AUTH_USER}"
+      password: "${BROKER_AUTH_PASSWORD}"
+
+  monitor:
+    address: "${MONITOR_ADDRESS}"
+
+  workerFiles:
+    enabled: true
+    auth:
+      username: "${WORKER_FILES_AUTH_USER}"
+      password: "${WORKER_FILES_AUTH_PASSWORD}"
+    removalThreshold: "1 day"
+
+  localRegistration:
+    enabled: ${LOCAL_REGISTRATION_ENABLED}
+
+  emails:
+    footerUrl: "%webapp.address%"
+    from: "${MAIL_FROM}"
+    defaultAdminTo: "${ADMIN_EMAIL}"
+
+  exercises:
+    testCountLimit: 100
+    exerciseFileCountLimit: 200
+    exerciseFileSizeLimit: 268435456
+    solutionFilesLimitDefault: 10
+    solutionSizeLimitDefault: 262144
+
+  removeInactiveUsers:
+    threshold: "2 years"
+
+nettrine.dbal:
+  connections:
+    default:
+      host: "${DB_HOST}"
+      user: "${DB_USER}"
+      password: "${DB_PASSWORD}"
+      dbname: "${DB_NAME}"
+      charset: utf8mb4
+
+mail:
+  host: "${SMTP_HOST}"
+  clientHost: "${SMTP_CLIENT_HOST}"
+  port: ${SMTP_PORT}
+  username: "${SMTP_USER}"
+  password: "${SMTP_PASSWORD}"
+  secure: "${SMTP_SECURE}"
+  context:
+    ssl:
+      verify_peer: false
+      verify_peer_name: false
+      allow_self_signed: true

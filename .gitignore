@@ -1,0 +1,7 @@
+repos/
+.env
+*.log
+data/
+.DS_Store
+.claude/
+JP/

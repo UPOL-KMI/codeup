@@ -1,0 +1,247 @@
+# ReCodEx — full stack.
+#
+# Prerequisites: run ./pull-repos.sh once to fetch source into ./repos (upstream ReCodEx repos,
+# plus our own replacement frontend into repos/web-next), and copy .env.example to .env and fill
+# in real secrets.
+#
+#   ./pull-repos.sh
+#   cp .env.example .env   # then edit .env
+#   docker compose build
+#   docker compose up -d
+#
+# See README.md for the full production deployment guide, and in particular the
+# note about cgroup v1 being required on the host for the `worker` service.
+
+networks:
+  recodex:
+    driver: bridge
+
+volumes:
+  mysql_data:
+  api_storage:
+  api_log:
+  broker_log:
+  monitor_log:
+  worker_cache:
+
+services:
+  mysql:
+    # Pinned to an LTS point release (not the floating `mariadb:11` tag): the
+    # newest MariaDB point releases have a Doctrine DBAL platform-detection class
+    # that's missing getName(), which breaks one of core-api's older migrations.
+    image: mariadb:10.11
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - recodex
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+
+  api:
+    build:
+      context: .
+      dockerfile: services/api/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      API_ADDRESS: ${PROTOCOL}://${APP_DOMAIN}/api
+      WEBAPP_ADDRESS: ${PROTOCOL}://${APP_DOMAIN}
+      JWT_SECRET: ${JWT_SECRET}
+      TOKEN_COOKIE_PREFIX: ${TOKEN_COOKIE_PREFIX}
+      BROKER_ADDRESS: tcp://broker:9658
+      BROKER_AUTH_USER: ${BROKER_AUTH_USER}
+      BROKER_AUTH_PASSWORD: ${BROKER_AUTH_PASSWORD}
+      MONITOR_ADDRESS: ${MONITOR_PROTOCOL}://${APP_DOMAIN}/ws
+      WORKER_FILES_AUTH_USER: ${WORKER_FILES_AUTH_USER}
+      WORKER_FILES_AUTH_PASSWORD: ${WORKER_FILES_AUTH_PASSWORD}
+      LOCAL_REGISTRATION_ENABLED: ${LOCAL_REGISTRATION_ENABLED}
+      MAIL_FROM: ${MAIL_FROM}
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      DB_HOST: mysql
+      DB_USER: ${MYSQL_USER}
+      DB_PASSWORD: ${MYSQL_PASSWORD}
+      DB_NAME: ${MYSQL_DATABASE}
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_CLIENT_HOST: ${SMTP_CLIENT_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
+      SMTP_SECURE: ${SMTP_SECURE}
+      RECODEX_SEED_DB: ${RECODEX_SEED_DB}
+    volumes:
+      - api_storage:/opt/recodex-core/storage
+      - api_log:/opt/recodex-core/log
+    networks:
+      - recodex
+    command: ["serve"]
+
+  api-worker:
+    build:
+      context: .
+      dockerfile: services/api/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      api:
+        condition: service_started
+    environment:
+      API_ADDRESS: ${PROTOCOL}://${APP_DOMAIN}/api
+      WEBAPP_ADDRESS: ${PROTOCOL}://${APP_DOMAIN}
+      JWT_SECRET: ${JWT_SECRET}
+      TOKEN_COOKIE_PREFIX: ${TOKEN_COOKIE_PREFIX}
+      BROKER_ADDRESS: tcp://broker:9658
+      BROKER_AUTH_USER: ${BROKER_AUTH_USER}
+      BROKER_AUTH_PASSWORD: ${BROKER_AUTH_PASSWORD}
+      MONITOR_ADDRESS: ${MONITOR_PROTOCOL}://${APP_DOMAIN}/ws
+      WORKER_FILES_AUTH_USER: ${WORKER_FILES_AUTH_USER}
+      WORKER_FILES_AUTH_PASSWORD: ${WORKER_FILES_AUTH_PASSWORD}
+      LOCAL_REGISTRATION_ENABLED: ${LOCAL_REGISTRATION_ENABLED}
+      MAIL_FROM: ${MAIL_FROM}
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      DB_HOST: mysql
+      DB_USER: ${MYSQL_USER}
+      DB_PASSWORD: ${MYSQL_PASSWORD}
+      DB_NAME: ${MYSQL_DATABASE}
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_CLIENT_HOST: ${SMTP_CLIENT_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
+      SMTP_SECURE: ${SMTP_SECURE}
+      RECODEX_SEED_DB: "false"
+    volumes:
+      - api_storage:/opt/recodex-core/storage
+      - api_log:/opt/recodex-core/log
+    networks:
+      - recodex
+    command: ["async-worker"]
+
+  broker:
+    build:
+      context: .
+      dockerfile: services/broker/Dockerfile
+    restart: unless-stopped
+    environment:
+      API_ADDRESS: ${PROTOCOL}://${APP_DOMAIN}/api
+      NOTIFIER_PORT: ${NOTIFIER_PORT}
+      BROKER_AUTH_USER: ${BROKER_AUTH_USER}
+      BROKER_AUTH_PASSWORD: ${BROKER_AUTH_PASSWORD}
+      MONITOR_HOST: monitor
+      MONITOR_ZMQ_PORT: "7894"
+      LOG_LEVEL: ${LOG_LEVEL}
+    volumes:
+      - broker_log:/var/log/recodex
+    networks:
+      - recodex
+
+  worker:
+    build:
+      context: .
+      dockerfile: services/worker/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - broker
+    environment:
+      WORKER_ID: ${WORKER_ID}
+      WORKER_HWGROUP: ${WORKER_HWGROUP}
+      BROKER_URI: tcp://broker:9657
+      API_ADDRESS: ${PROTOCOL}://${APP_DOMAIN}/api
+      WORKER_FILES_AUTH_USER: ${WORKER_FILES_AUTH_USER}
+      WORKER_FILES_AUTH_PASSWORD: ${WORKER_FILES_AUTH_PASSWORD}
+      LOG_LEVEL: ${LOG_LEVEL}
+    volumes:
+      - worker_cache:/var/recodex-worker-cache
+    networks:
+      - recodex
+    # The sandbox (isolate) needs to create cgroups/namespaces directly on the
+    # host kernel -- this is the one intentionally-trusted/privileged container
+    # in the stack. Host kernel must run cgroup v1 (legacy/hybrid), see README.
+    privileged: true
+    cgroup: host
+
+  monitor:
+    build:
+      context: .
+      dockerfile: services/monitor/Dockerfile
+    restart: unless-stopped
+    environment:
+      LOG_LEVEL: ${LOG_LEVEL}
+    volumes:
+      - monitor_log:/var/log/recodex
+    networks:
+      - recodex
+
+  web-app:
+    build:
+      context: .
+      dockerfile: services/web-app/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      WEB_APP_PORT: ${WEB_APP_PORT}
+      API_ADDRESS: ${PROTOCOL}://${APP_DOMAIN}/api
+      RECODEX_TITLE: ${RECODEX_TITLE}
+      TOKEN_COOKIE_PREFIX: ${TOKEN_COOKIE_PREFIX}
+      LOCAL_REGISTRATION_ENABLED: ${LOCAL_REGISTRATION_ENABLED}
+    networks:
+      - recodex
+
+  web-next:
+    build:
+      context: repos/web-next
+      args:
+        URL_PATH_PREFIX: ""
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      # On the compose network, so talk to `api` directly instead of round-tripping
+      # through the proxy alias -- the internal/public URL split this app's brief
+      # calls for (recodex-web-next/docs/DECISIONS.md DEC-007).
+      API_BASE_INTERNAL: http://api:80/v1
+      API_BASE_PUBLIC: ${PROTOCOL}://${APP_DOMAIN}/api/v1
+      MONITOR_WS_URL: ${MONITOR_PROTOCOL}://${APP_DOMAIN}/ws
+      SESSION_COOKIE_PREFIX: ${TOKEN_COOKIE_PREFIX}
+      PORT: "3000"
+    ports:
+      - "${WEB_NEXT_PORT}:3000"
+    networks:
+      - recodex
+
+  proxy:
+    image: nginx:1.27
+    restart: unless-stopped
+    depends_on:
+      - api
+      - web-app
+      - monitor
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN}
+    volumes:
+      - ./services/proxy/nginx.conf.template:/etc/nginx/templates/default.conf.template:ro
+      # - ./services/proxy/certs:/etc/nginx/certs:ro   # uncomment once you add TLS certs
+    ports:
+      - "${HTTP_PORT}:80"
+      # - "${HTTPS_PORT}:443"   # uncomment once you add TLS certs
+    networks:
+      recodex:
+        aliases:
+          # lets api/broker/worker containers resolve the public domain to this
+          # proxy directly over the internal network, without relying on real
+          # DNS/NAT hairpinning (important since core-api embeds ${APP_DOMAIN}
+          # URLs in links workers must fetch files from).
+          - ${APP_DOMAIN}

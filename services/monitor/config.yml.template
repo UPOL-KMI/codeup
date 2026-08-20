@@ -1,0 +1,13 @@
+---
+websocket_uri:
+    - "0.0.0.0"
+    - 4567
+zeromq_uri:
+    - "0.0.0.0"
+    - 7894
+logger:
+    file: "/var/log/recodex/monitor.log"
+    level: "${LOG_LEVEL}"
+    max-size: 1048576
+    rotations: 3
+...

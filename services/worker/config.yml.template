@@ -1,0 +1,45 @@
+---
+worker-id: ${WORKER_ID}
+worker-description: "docker_worker_${WORKER_ID}"
+broker-uri: "${BROKER_URI}"
+headers:
+    env:
+        - bash
+        - c-gcc-linux
+        - cxx-gcc-linux
+        - python3
+    threads: 1
+hwgroup: "${WORKER_HWGROUP}"
+working-directory: "/var/recodex-worker-wd"
+file-managers:
+    - hostname: "${API_ADDRESS}"
+      username: "${WORKER_FILES_AUTH_USER}"
+      password: "${WORKER_FILES_AUTH_PASSWORD}"
+file-cache:
+    cache-dir: "/var/recodex-worker-cache"
+logger:
+    file: "/var/log/recodex/worker"
+    level: "${LOG_LEVEL}"
+    max-size: 1048576
+    rotations: 3
+limits:
+    time: 30
+    wall-time: 30
+    extra-time: 2
+    stack-size: 0
+    memory: 1048576
+    extra-memory: 64
+    parallel: 0
+    disk-quotas: false
+    disk-size: 1048576
+    disk-files: 100
+    environ-variable:
+        HOME: /box
+        PATH: /usr/bin:/bin
+    bound-directories:
+        - dst: "/tmp"
+          mode: "tmp"
+max-output-length: 4096
+max-carboncopy-length: 1048576
+cleanup-submission: false
+...
