@@ -32,13 +32,18 @@ to the production server.
 
 `repos/web-next` is **not** an upstream ReCodEx repo — it's our own from-scratch Next.js
 replacement for `web-app`, developed in its own separate git repository
-(`git@github.com:jurja00/codeUp-web-ui.git`). `pull-repos.sh` fetches it the same way as the
-upstream repos, into the same gitignored `repos/` tree, purely for convenience — one script
-still brings the whole stack together. It builds and runs as its own `web-next` service (see
-`docker-compose.yaml`), side by side with the legacy `web-app`, on its own port
-(`WEB_NEXT_PORT`, see below) rather than behind the `proxy` service — this is deliberate while
-the new frontend is still pre-parity with the legacy one; see that repo's own
-`docs/DECISIONS.md` for the reasoning.
+(`git@github.com:jurja00/codeUp-web-ui.git`). `pull-repos.sh` fetches it into the same gitignored
+`repos/` tree as the upstream repos, purely for convenience — one script still brings the whole
+stack together. It builds and runs as its own `web-next` service (see `docker-compose.yaml`),
+side by side with the legacy `web-app`, on its own port (`WEB_NEXT_PORT`, see below) rather than
+behind the `proxy` service — this is deliberate while the new frontend is still pre-parity with
+the legacy one; see that repo's own `docs/DECISIONS.md` for the reasoning.
+
+Unlike the upstream repos (pure build inputs, always force-updated to the pinned ref),
+`repos/web-next` is meant to be developed in directly — it's cloned in full (not shallow) on a
+real branch. Re-running `./pull-repos.sh` only fast-forwards it if there are no uncommitted
+changes and no local commits missing from the remote; otherwise it leaves the working tree
+untouched and tells you so, rather than discarding in-progress work.
 
 ## Architecture
 
