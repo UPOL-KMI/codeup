@@ -21,6 +21,17 @@ const newDestructure = '      resource,\n      resourceArray,\n      forceLoadin
 const oldJsx = '      <ResourceRenderer\n        resource={resource}\n        forceLoading={forceLoading}';
 const newJsx = '      <ResourceRenderer\n        resource={resource}\n        resourceArray={resourceArray}\n        forceLoading={forceLoading}';
 
+// Upstream fixed this themselves at some point after this patch was written (current
+// master already destructures and forwards `resourceArray`, and declares its propType).
+// Check for the already-fixed shape FIRST and skip: the patch stays here only so that
+// pinning an older ref (`REF=<tag> ./pull-repos.sh`, see the compose repo's README) still
+// builds. Anything that matches neither shape is still a genuine "upstream moved, re-check
+// this" signal and fails the build loudly, as before.
+if (contents.includes(newDestructure) && contents.includes(newJsx)) {
+  console.error('patch-compatibility: Page.js already forwards resourceArray upstream -- nothing to do.');
+  process.exit(0);
+}
+
 if (!contents.includes(oldDestructure) || !contents.includes(oldJsx)) {
   throw new Error('patch-compatibility: Page.js no longer matches the expected upstream text -- check if this patch is still needed.');
 }
