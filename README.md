@@ -139,11 +139,29 @@ production-environment prerequisite.
 
 ## Language toolchains
 
-`services/worker/Dockerfile` installs only `gcc`, `g++`, and `python3` by default (and
-`services/worker/config.yml.template`'s `headers.env` list only advertises those). ReCodEx
-itself supports many more runtime environments (Java, Rust, Go, Haskell, Node, .NET/Mono,
-Kotlin, Prolog, Free Pascal, Groovy, Scala...) — see
-[ReCodEx/runtimes](https://github.com/ReCodEx/runtimes) for the full catalogue.
+`services/worker/Dockerfile` installs `gcc`, `g++`, `python3`, the **.NET 8 SDK** (C#) and a
+**JDK** (Java) by default, and `services/worker/config.yml.template`'s `headers.env` advertises
+the matching environments: `bash`, `c-gcc-linux`, `cxx-gcc-linux`, `python3`, `cs-dotnet-core`,
+`java`. ReCodEx itself supports more (Rust, Go, Haskell, Node, Kotlin, Prolog, Free Pascal,
+Groovy, Scala...) — see [ReCodEx/runtimes](https://github.com/ReCodEx/runtimes) for the full
+catalogue and "To add a language" below.
+
+### ⚠️ C#: the .NET version is not free to choose
+
+`cs-dotnet-core-2024-12-15.zip`'s own `Program.runtimeconfig.json` pins
+`"tfm": "netcoreapp8.0"` / `"version": "8.0.0"` and sets **no** `rollForward` key, so the host's
+default policy (`Minor`) will start on any 8.0.x runtime but will **not** cross to .NET 9 or 10.
+Installing "the latest .NET" therefore produces a worker that looks correctly provisioned and
+fails every C# submission at run time. (Confusingly, the package's own *description* text still
+says "currently v6" — the config file shipped in the same zip is what actually gets loaded, and
+it says 8.) The pin lives in `services/worker/Dockerfile`'s `DOTNET_CHANNEL` build arg; change it
+only together with the runtime package.
+
+The same pipeline compiles with Roslyn's `csc.dll` through the `dotnet` CLI and requires
+`/opt/dotnet` plus *relative* symlinks named `latest` under `sdk/` and
+`shared/Microsoft.NETCore.App/` — the Dockerfile creates both. `.NET` first-run/telemetry writes
+are steered away from the wiped-per-submission sandbox `$HOME` by the `DOTNET_*` variables in
+`services/worker/config.yml.template`.
 
 **`python3` is 3.13, not Debian 12's stock 3.11.** Bookworm's own `python3` package is 3.11,
 which rejects syntax students routinely write when developing against a newer interpreter

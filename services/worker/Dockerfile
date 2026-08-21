@@ -61,7 +61,40 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libncurses6 libgdbm6 liblzma5 libuuid1 \
         # --- language toolchains available to submitted jobs: extend as needed ---
         gcc g++ \
+        # Java: the java-2024-12-15 runtime package's pipelines invoke plain `javac` and
+        # `java`, nothing version-specific, so Debian 12's default JDK (OpenJDK 17) is what
+        # they need -- no vendor repo involved.
+        default-jdk \
+        # needed to fetch the .NET SDK below
+        wget \
     && rm -rf /var/lib/apt/lists/*
+
+# .NET 8 for the `cs-dotnet-core` runtime, installed to /opt/dotnet.
+#
+# **The version is not free to choose.** The runtime package's own
+# `Program.runtimeconfig.json` (shipped inside cs-dotnet-core-2024-12-15.zip, which the api
+# image imports) pins `"tfm": "netcoreapp8.0"` / `"version": "8.0.0"` with no `rollForward`
+# key -- so the host's default roll-forward policy (Minor) will start on 8.0.x but will NOT
+# cross to .NET 9 or 10. Installing "the latest .NET" therefore produces a worker that looks
+# correctly provisioned and fails every C# submission at run time. (The package's *description*
+# text still says "currently v6"; the config in the same zip is the thing that's actually
+# loaded, and it says 8.)
+#
+# The layout below is likewise dictated by the pipeline, not a preference: it compiles with
+# Roslyn's csc.dll through the `dotnet` CLI and documents that it needs `/opt/dotnet` plus
+# relative symlinks named `latest` under `sdk/` and `shared/Microsoft.NETCore.App/`.
+# dotnet-install.sh is used rather than packages.microsoft.com because it drops a
+# self-contained tree at a path we choose, which is exactly what those symlinks expect.
+ARG DOTNET_CHANNEL=8.0
+RUN wget -qO /tmp/dotnet-install.sh https://dot.net/v1/dotnet-install.sh \
+    && chmod +x /tmp/dotnet-install.sh \
+    && /tmp/dotnet-install.sh --channel "${DOTNET_CHANNEL}" --install-dir /opt/dotnet \
+    && rm /tmp/dotnet-install.sh \
+    && ln -s /opt/dotnet/dotnet /usr/bin/dotnet \
+    && ln -s "$(basename "$(ls -d /opt/dotnet/sdk/*/ | head -1)")" /opt/dotnet/sdk/latest \
+    && ln -s "$(basename "$(ls -d /opt/dotnet/shared/Microsoft.NETCore.App/*/ | head -1)")" \
+        /opt/dotnet/shared/Microsoft.NETCore.App/latest \
+    && dotnet --info
 
 # (not /staging/lib -- that's just the systemd unit file, irrelevant in Docker,
 # and colliding with Debian's merged-/usr symlink for /lib would break the copy)

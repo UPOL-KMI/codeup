@@ -31,6 +31,8 @@ RUN mkdir -p /opt/recodex-runtimes && cd /opt/recodex-runtimes \
         c-gcc-linux-2024-12-15.zip \
         cxx-gcc-linux-2024-12-15.zip \
         python3-2024-12-15.zip \
+        cs-dotnet-core-2024-12-15.zip \
+        java-2024-12-15.zip \
     ; do curl -fsSLO "https://raw.githubusercontent.com/ReCodEx/runtimes/master/generic/$pkg"; done
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer

@@ -8,6 +8,8 @@ headers:
         - c-gcc-linux
         - cxx-gcc-linux
         - python3
+        - cs-dotnet-core
+        - java
     threads: 1
 hwgroup: "${WORKER_HWGROUP}"
 working-directory: "/var/recodex-worker-wd"
@@ -36,6 +38,15 @@ limits:
     environ-variable:
         HOME: /box
         PATH: /usr/bin:/bin
+        # .NET writes a first-run marker, a telemetry sentinel and a NuGet fallback folder under
+        # $HOME the first time the CLI runs. Inside isolate, $HOME is the per-submission /box,
+        # which is wiped between runs -- so without these every single C# submission would pay
+        # for (and could fail on) that first-run setup. Set here rather than in the pipeline so
+        # it applies to compile and execute alike.
+        DOTNET_CLI_TELEMETRY_OPTOUT: 1
+        DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1
+        DOTNET_NOLOGO: 1
+        DOTNET_CLI_HOME: /box
     bound-directories:
         - dst: "/tmp"
           mode: "tmp"
