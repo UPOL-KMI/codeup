@@ -19,7 +19,7 @@ Bump both together: change `repos.lock`, re-verify, and add a row here saying wh
 | `broker`   | `upol-kmi/upcode-broker`     | `abdc95c`  | 2022-12-04 |
 | `cleaner`  | `upol-kmi/upcode-cleaner`    | `0a5e390`  | 2025-07-16 |
 | `web-app`  | `ReCodEx/web-app` (upstream) | `fc6fdaf`  | 2026-08-01 |
-| `web-next` | `upol-kmi/upcode-web-ui`     | `a118d4e`  | 2026-09-11 |
+| `web-next` | `upol-kmi/upcode-web-ui`     | `08e6089`  | 2026-09-11 |
 
 **How it was verified.** Against a seeded instance (`pnpm seed`), the new frontend's full suite:
 **311 end-to-end tests pass and 3 skip, 0 failures**, with `retries` at 0, plus 287 unit tests and
