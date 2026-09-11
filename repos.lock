@@ -29,7 +29,7 @@ broker     abdc95cfad4586a9cd2f17bdd5fdaa48cc60445d   # upol-kmi/upcode-broker
 monitor    e6f8a1dd25c5837c0aef5019b91e5987bfc15c85   # upol-kmi/upcode-monitor
 isolate    25d3f48882a08bee1d348476e9ed3af205dc1316   # upol-kmi/upcode-isolate, base of `upcode`
 cleaner    0a5e390241866fac52755098fc2cb3882e106e83   # upol-kmi/upcode-cleaner
-web-next   a60c6f0ad1d4287689a94f7c104fc75df990beee   # upol-kmi/upcode-web-ui
+web-next   542b510712f5a1ed987b18d654b618167669bc8c   # upol-kmi/upcode-web-ui
 
 # `web-app` is the one repository taken straight from upstream. It is the legacy frontend, which
 # `web-next` exists to replace, so nothing of ours will ever change in it -- forking it would mean

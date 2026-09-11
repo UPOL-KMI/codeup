@@ -202,6 +202,12 @@ services:
       RECODEX_TITLE: ${RECODEX_TITLE}
       TOKEN_COOKIE_PREFIX: ${TOKEN_COOKIE_PREFIX}
       LOCAL_REGISTRATION_ENABLED: ${LOCAL_REGISTRATION_ENABLED}
+    # Published since plan 004 moved `/` to the new frontend. Until then this service needed no
+    # host port -- the proxy was how anybody reached it -- and the cutover would otherwise have
+    # made the legacy app unreachable rather than merely no longer the front door, which is not
+    # what "keep it as a reference" meant.
+    ports:
+      - "${WEB_APP_PORT}:${WEB_APP_PORT}"
     networks:
       - recodex
 
@@ -232,6 +238,11 @@ services:
     restart: unless-stopped
     depends_on:
       - api
+      # `web-next` serves `/` since plan 004 and `web-app` is still reachable on its own port.
+      # Both are listed because nginx resolves every upstream name when it starts and refuses to
+      # start at all if one of them does not resolve -- a missing dependency here is not a slow
+      # first request, it is a proxy that never comes up.
+      - web-next
       - web-app
       - monitor
     environment:

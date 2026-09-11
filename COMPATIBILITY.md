@@ -19,7 +19,7 @@ Bump both together: change `repos.lock`, re-verify, and add a row here saying wh
 | `broker`   | `upol-kmi/upcode-broker`     | `abdc95c`  | 2022-12-04 |
 | `cleaner`  | `upol-kmi/upcode-cleaner`    | `0a5e390`  | 2025-07-16 |
 | `web-app`  | `ReCodEx/web-app` (upstream) | `fc6fdaf`  | 2026-08-01 |
-| `web-next` | `upol-kmi/upcode-web-ui`     | `a60c6f0`  | 2026-09-11 |
+| `web-next` | `upol-kmi/upcode-web-ui`     | `542b510`  | 2026-09-11 |
 
 **How it was verified.** The database and file storage were wiped and rebuilt from the api
 entrypoint's fresh-database path, then seeded (`pnpm seed`). Against that instance the new
@@ -235,10 +235,25 @@ correctly provisioned and fails every C# submission at run time. The package *de
 claims v6; the config shipped beside it says 8, and the config is what gets loaded. Hence the pin
 in `services/worker/Dockerfile`, and see README's "Language toolchains" for the full reasoning.
 
-### The new frontend is not what `/` serves
+### The new frontend serves `/` — done 2026-09-11, plan 004
 
-`services/proxy/nginx.conf.template` has `location / { proxy_pass http://web-app:8080; }` — the
-**legacy** frontend. `web-next` is published only on its own port (`WEB_NEXT_PORT`, default 3001).
-Switching it over is one entry in that template, and it is deliberately not done yet: the legacy UI
-is a useful reference while the pipelines and runtimes are still being worked on. When it is
-switched, the `web-app` service and `repos.lock`'s exception for it go together.
+`services/proxy/nginx.conf.template`'s `location /` points at `web-next:3000`. The legacy app is
+still built and still running, now on a published host port (`WEB_APP_PORT`, default 8080), because
+it is a useful reference while the pipelines and runtimes are still being worked on.
+
+**"Switching it over is one entry in that template" — which this file used to say — was wrong, and
+`repos/web-next/docs/ROUTES.md` had said so all along:** every legacy URL needed somewhere to go
+first. `/app/...` paths are in bookmarks, in old emails and on teachers' slides, and every route in
+the new app moved — a locale prefix on all of them, six group screens collapsed into `?tab=`, and
+solutions dropping their assignment context. That mapping is now `redirects()` in
+`repos/web-next/next.config.ts`, checked by driving 24 legacy paths against a real build rather
+than by reading the table.
+
+**Two smaller things the cutover turned up.** The proxy's `depends_on` had to gain `web-next`:
+nginx resolves every upstream name at start-up and refuses to start if one does not resolve, so a
+missing dependency there is not a slow first request but a proxy that never comes up. And `web-app`
+had **no published port at all** — this proxy was the only way anybody reached it — so the switch
+would have made it unreachable rather than merely no longer the front door.
+
+**Retiring `web-app`** — the service, its build, and `repos.lock`'s exception for the one unforked
+repo — is still to come, and is deliberately not part of this.

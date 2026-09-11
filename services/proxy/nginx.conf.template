@@ -33,8 +33,19 @@ server {
         proxy_read_timeout 3600s;
     }
 
+    # The **new** frontend serves the root as of plan 004. The legacy one is still built and
+    # still running, and the same plan gave it a published host port (`WEB_APP_PORT`) so that it
+    # stays a reference -- it had never needed one, because this proxy was how anybody reached it,
+    # so the cutover would otherwise have made it unreachable rather than merely not the front
+    # door.
+    #
+    # The cutover needed more than this line: every legacy URL had to be given somewhere to go
+    # first, since `/app/...` paths are in bookmarks, in old emails and on teachers' slides.
+    # `repos/web-next/next.config.ts`'s `redirects()` is where that lives, because the mapping is a
+    # property of the app's own routes rather than of this deployment -- see the table in
+    # `repos/web-next/docs/ROUTES.md`, which the plan turned into code.
     location / {
-        proxy_pass http://web-app:8080;
+        proxy_pass http://web-next:3000;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
