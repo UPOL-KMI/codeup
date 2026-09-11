@@ -12,7 +12,8 @@ person does not repeat it.
 | Plan | Status |
 | ---- | ------ |
 | [001 — Evaluation works locally on macOS (cgroup v2)](001-cgroup-v2-local-evaluation.md) | done — sandbox works; uncovered 002 |
-| [002 — A submission is actually graded](002-exercise-config-source-files.md) | planned |
+| [002 — A submission is actually graded](002-exercise-config-source-files.md) | done — a seeded solution scores 10/10 |
+| [003 — A fresh install names the operator's own university](003-instance-name-on-a-fresh-install.md) | planned |
 
 **Sections a plan should have**, because each of them has earned its place:
 

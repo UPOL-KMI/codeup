@@ -1,6 +1,10 @@
 # 002 — A submission is actually graded
 
-**Status:** planned, not started · **Written:** 2026-09-11 · **Uncovered by:** plan 001
+**Status:** done, 2026-09-11 · **Written:** 2026-09-11 · **Uncovered by:** plan 001
+
+> **Outcome.** Three faults, all in `repos/web-next`, none in core-api — see "What actually
+> happened" at the end, which supersedes the guesses below where the two differ. A seeded solution
+> now scores 10/10 and a wrong one 0/10, through the real submit path.
 
 ## Goal
 
@@ -103,3 +107,71 @@ Ordered so that the cheap discriminator comes first.
   importing them is a separate step with its own recipe in `COMPATIBILITY.md`.
 - Anything about the sandbox. Plan 001 closed that; if a submission fails *inside* isolate with a
   real verdict, this plan has succeeded.
+
+---
+
+## What actually happened
+
+Step 1's discriminator was run as written — the same exercise configured through the app's own
+screens, then diffed against the seed's — and it was **not** decisive on its own. The two configs
+differ (the app writes two pipelines and the `$entry-point` sentinel; the seed wrote one pipeline
+and an empty string), but rewriting the seeded exercise through the app's editor and re-running the
+solution produced a **byte-identical job**. The reason is a trap this plan did not anticipate: an
+assignment holds a *snapshot* of its exercise, so nothing changed until the assignment was synced.
+With the sync done, the picture came apart into three separate faults.
+
+**1. `source-files` was an array where ReCodEx wants a scalar.** The seed wrote
+`{name: "source-files", type: "file[]", value: ["*.py"]}`.
+`VariablesResolver::resolveFileInputsRegexp` (core-api,
+`app/helpers/ExerciseConfig/Compilation/VariablesResolver.php:80`) returns the variable untouched
+when `isValueArray()` is true — so the wildcard was never matched against the submitted file names
+and the job copied a file literally called `*.py`. ReCodEx's own python3 runtime declares
+`{"name":"source-files","type":"file[]","value":"*.py"}` in `defaultVariables`: the type is an
+array, the value is one pattern. Exactly one pattern is possible, which is a design limit worth
+knowing.
+
+**2. A test needs both of the environment's pipelines.** The seed attached only
+`Python execution & evaluation [stdout]`. That pipeline's `source-files` is an *input* a preceding
+pipeline binds, and Python's "compilation" is `Compilation source files pass-through` — a no-op
+that exists precisely to bind it, which is why leaving it out looked harmless. Its `entry-point`
+must also be the reference `$entry-point`, not `""`; an empty string is what rendered the run as
+`python3 <runner> ${EVAL_DIR}/`.
+
+**So the two symptoms were two bugs, not one** — the plan's open question, answered.
+
+**3. And a third, which fixing the first two exposed:** `$entry-point` makes the entry point a
+**submit-time** variable, and core-api refuses a submission that does not carry it
+(`Variable 'entry-point' was not provided on submit`). The legacy frontend sends
+`solutionParams: {variables: [{name: "entry-point", value: …}]}` and the new one never did — a
+genuine parity gap, invisible until now because no exercise on this deployment demanded the
+variable. Fixing the seed alone would therefore have broken the new frontend's submit screen.
+
+### What the job looks like before and after
+
+| | the copy task | the run task | verdict |
+| --- | --- | --- | --- |
+| before | `cp ${SOURCE_DIR}/*.py ${SOURCE_DIR}/Test 1/*.py` | `python3 <runner> ${EVAL_DIR}/` | exit 2 |
+| after | `cp ${SOURCE_DIR}/solution.py ${SOURCE_DIR}/Test 1/solution.py` | `python3 <runner> ${EVAL_DIR}/solution.py` | **10/10, Test 1 OK** |
+
+### Other things this established
+
+- **A ZIP submission cannot be graded by a `*.py` exercise, and never could.**
+  `Solution::getFileNames()` reports the uploaded name (`solution.zip`), not the entries inside, so
+  the wildcard matches nothing and core-api refuses the submit. The seed's ZIP fixture only ever
+  "worked" because the broken configuration skipped matching altogether. It is a genuine multi-file
+  solution now (`main.py` + `greeting.py`), which keeps everything the fixture was used for and
+  grades.
+- **Nothing can mint a submission failure on demand any more**, because the sandbox works. That
+  fixture took a job that always failed; it now takes a hardware group no worker serves, and this
+  deployment defines one. Filed as `web-next` PF-017.
+- **Two core-api defects, filed as `web-next` Q-031 and Q-032.** Deleting a solution that a
+  plagiarism record points at answers HTTP 500 (`ForeignKeyConstraintViolationException`) *after*
+  removing the stored files, leaving a solution whose file listing is intact and whose bytes are
+  gone; and a submission refused at compilation still leaves a `Solution` row behind.
+
+### Where the work landed
+
+All of it in `repos/web-next`, filed there as **PF-016**: `scripts/seed.ts`,
+`lib/actions/submit-solution.ts`, `lib/actions/submit-solution.schema.ts`,
+`components/assignments/submit-form.tsx`, both message catalogues, and the e2e helpers and specs
+that named the ZIP fixture. **No change to core-api**, which is what step 1 was for.

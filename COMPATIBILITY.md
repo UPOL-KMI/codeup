@@ -29,10 +29,10 @@ both runs the seeded fixtures were **unchanged** — four solutions on the prima
 the second-deadline one, none on the deliberately-empty one, the review request still standing —
 which is the part that says the suite does not quietly consume its own fixtures.
 
-**What was not verified: evaluation itself.** See "cgroup v2" below. Submitted code does not run on
-this host, so every pass/fail state in the seeded data is an infrastructure failure rather than a
-verdict. Everything *around* evaluation — submitting, storing, listing, reviewing, scoring by hand
-— is verified.
+**Evaluation is verified end to end as of 2026-09-11** — a correct seeded solution scores full
+points and a wrong one zero, through the real submit path. See "The sandbox works" below for what
+it took and what was verified; the paragraph that used to stand here said submitted code does not
+run on this host, and that has not been true since plan 002.
 
 **This is a source pin, not an image pin,** and on 2026-09-11 the two disagreed: the running
 `recodex-api` and `recodex-worker` images predated the C#/Java toolchain change already committed
@@ -99,7 +99,7 @@ with `FOREIGN_KEY_CHECKS=0`. An **existing** database still runs `migrations:mig
 
 ## Known not working, with the path out
 
-### The sandbox works — evaluation still does not, for a different reason
+### The sandbox works, and so does evaluation
 
 **Fixed 2026-09-11: the sandbox runs.** Isolate is **2.7** now (plan 001), the worker delegates
 itself a cgroup v2 subtree at start-up, and all of this is verified on Docker Desktop for macOS:
@@ -122,26 +122,31 @@ Python runs inside it and the limits are real, checked one at a time by hand:
 Memory limits *are* enforced despite `isolate-check-environment`'s swap CAUTION — it now reads
 "although accounted for", where before it was a FAIL saying accounting was absent.
 
-**What is still broken is a separate, older bug that the cgroup failure had been hiding.** A real
-submission now reaches the sandbox and fails there instead of before it: `initFailed=False`, and
-`Test 1` reports `Exited with error status 2`. Traced to the compiled job configuration, where the
-`run` task is
+**Fixed 2026-09-11, later the same day: evaluation is verified end to end.** What the cgroup
+failure had been hiding was a separate, older set of bugs in how the *exercise* was configured —
+three of them, all in `repos/web-next`, none in core-api, and none specific to macOS or cgroups.
+The compiled job read `python3 <runner> ${EVAL_DIR}/` with no file to run, and copied the solution
+to a file named literally `*.py`, because the environment's `source-files` wildcard was written as
+a one-element array (core-api only expands a scalar) and the test was missing the pass-through
+compilation pipeline that binds the submitted files at all. Fixing those made the entry point a
+*submit-time* variable, which the new frontend had never sent. Full account in
+**`docs/plans/002`**; the work itself is `web-next`'s **PF-016**.
 
-```yaml
-bin: /usr/bin/env
-args: [python3, cb83045aeb…  (the runner), "${EVAL_DIR}/"]
-```
+**Verified through the real submit path**, not by reading configuration:
 
-— the third argument is a **directory instead of the student's file**, so the runner's own
-`except BaseException: sys.exit(2)` fires when it tries to open it. In the same job the solution is
-copied to a file named literally `*.py`: the `source-files` pattern from the environment config is
-passed through unexpanded rather than resolved to the submitted file name. Setting the exercise
-config's `entry-point` to `solution.py` by hand persists but does not change the compiled job, so
-the entry point is not read from where it was written.
+| Seeded solution | Result |
+| ---- | ------ |
+| `[seed] correct` | **10/10**, `Test 1` OK |
+| `[seed] wrong` | **0/10**, `Test 1` FAILED |
+| `[seed] multi-file` (`main.py` + `greeting.py`) | **10/10**, `Test 1` OK |
 
-This is exercise-configuration territory, not sandbox territory, and it gets its own plan —
-**`docs/plans/002`**. Nothing about it is specific to macOS or to cgroups; it would fail the same
-way on a production host.
+and the compiled job now reads `cp ${SOURCE_DIR}/solution.py …` and
+`python3 <runner> ${EVAL_DIR}/solution.py`.
+
+**One consequence worth knowing before it surprises somebody:** a solution submitted as a single
+ZIP archive cannot be graded by an exercise whose `source-files` is `*.py`. core-api matches the
+wildcard against the *uploaded* file name (`solution.zip`), not the entries inside it, so such a
+submission is refused. That is upstream behaviour, not something this deployment introduced.
 
 **One real bug was found and fixed on the way**, also previously masked: the worker gave sandboxes
 `PATH=/usr/bin:/bin`, and this image builds Python 3.13 from source into `/usr/local` (Debian 12
