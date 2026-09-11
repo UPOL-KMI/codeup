@@ -10,7 +10,7 @@
 #   docker compose up -d
 #
 # See README.md for the full production deployment guide, and in particular the
-# note about cgroup v1 being required on the host for the `worker` service.
+# note about cgroup v2 being required on the host for the `worker` service.
 
 networks:
   recodex:
@@ -168,7 +168,10 @@ services:
       - recodex
     # The sandbox (isolate) needs to create cgroups/namespaces directly on the
     # host kernel -- this is the one intentionally-trusted/privileged container
-    # in the stack. Host kernel must run cgroup v1 (legacy/hybrid), see README.
+    # in the stack. Host kernel must run cgroup **v2** (the default on current
+    # systems, including Docker Desktop): isolate 2.x requires it, and the
+    # entrypoint delegates itself a subtree of the host hierarchy at start-up,
+    # which needs both of these settings. See README.
     privileged: true
     cgroup: host
 

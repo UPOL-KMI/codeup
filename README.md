@@ -139,35 +139,44 @@ First boot seeds an admin account (`admin@admin.com` / `admin`, controlled by
 `RECODEX_SEED_DB=true` in `.env`) — **log in and change that password immediately**, or set
 `RECODEX_SEED_DB=false` before first boot and create your own admin via `db:fill` manually.
 
-## ⚠️ Before going to production, read this: `worker` needs cgroup v1
+## The sandbox needs cgroup v2
 
 The `worker` container runs submitted code inside [`isolate`](https://github.com/ioi/isolate)
-(the same sandbox IOI/CMS use), which needs direct access to the kernel's cgroup and
-namespace facilities and runs `privileged: true` with `cgroup: host` in the compose file for
-that reason. **This specific isolate version (1.8.1, vendored by ReCodEx) only supports
-cgroup v1** (legacy/hybrid hierarchy) — it does not understand cgroup v2's unified
-hierarchy, which is the default on current Debian/Ubuntu/RHEL and on Docker Desktop.
+(the same sandbox IOI/CMS use), which needs direct access to the kernel's cgroup and namespace
+facilities — hence `privileged: true` and `cgroup: host` in the compose file.
 
-On the production server, either:
+**We run isolate 2.7, which requires cgroup v2** (the unified hierarchy). That is the default on
+current Debian/Ubuntu/RHEL and on Docker Desktop, so in practice there is nothing to configure:
+this stack works on a stock modern host, including a Mac.
 
-- **Boot the kernel with cgroup v1 (hybrid) mode.** On systemd-based distros, add
-  `systemd.unified_cgroup_hierarchy=0` to the kernel command line (edit
-  `/etc/default/grub`'s `GRUB_CMDLINE_LINUX`, run `update-grub`, reboot), or
-- Use a distro/kernel that still defaults to cgroup v1 hybrid mode.
+ReCodEx vendors isolate **1.8.1**, which is the mirror image — it supports only cgroup **v1** — so
+on a current host it refuses to run and every submission resolves to an infrastructure failure
+rather than a verdict. That is why `repos/isolate` is our fork
+([`upol-kmi/upcode-isolate`](https://github.com/upol-kmi/upcode-isolate), branch `upcode`) carrying
+upstream 2.7 instead. Nothing of ReCodEx's own was lost in the move; see
+`docs/plans/001-cgroup-v2-local-evaluation.md`.
 
-You can check the current mode with `mount | grep cgroup` — cgroup v2-only systems show a
-single `cgroup2` mount at `/sys/fs/cgroup`; hybrid/legacy systems show multiple `cgroup`
-(v1) mounts per-controller (`memory`, `cpu`, `cpuset`, ...).
+Isolate 2.x also wants a delegated subtree of the cgroup hierarchy. On a systemd host that is what
+its own `isolate.service`/`isolate.slice` units do; in a container there is no systemd, so
+`services/worker/docker-entrypoint.sh` creates `/sys/fs/cgroup/isolate` and enables the `memory`,
+`cpu` and `cpuset` controllers on it at start-up, and the worker's isolate config points `cg_root`
+there. It is created in the **host's root** cgroup rather than under the container's own, because
+cgroup v2 forbids a non-root cgroup from holding processes while enabling controllers for its
+children and the container's cgroup holds the worker. If that setup fails the entrypoint fails the
+container, deliberately: a worker that cannot sandbox would report rubbish verdicts to students,
+whereas one that is visibly down gets noticed.
 
-Verify with:
+Check the current mode with `mount | grep cgroup` — a cgroup v2 host shows a single `cgroup2` mount
+at `/sys/fs/cgroup`. And after `docker compose up -d`:
+
 ```bash
-docker compose logs worker | grep -A2 "cgroup support"
+docker compose logs worker | grep -E "cgroup v2 subtree|cgroup support"
 ```
-`OK` for memory/cpuacct/cpuset means the sandbox will work; `CAUTION`/`WARNING` (what you'll
-see on a cgroup-v2-only host, and what this stack showed in local testing on macOS/Docker
-Desktop) means submitted code will fail to evaluate until the host is switched to cgroup v1.
-Every other service in this stack is architecture/host-agnostic; this is the one genuine
-production-environment prerequisite.
+
+**If you are on a cgroup v1 host** (an older distro, or one deliberately booted with
+`systemd.unified_cgroup_hierarchy=0`), isolate 2.x will not run and the answer is to pin
+`repos.lock`'s `isolate` entry back to `master` — ReCodEx's 1.8.1 — and revert the worker's
+`--cg-timing` removal. Upstream ships 1.10.1 for exactly this case.
 
 ## Language toolchains
 

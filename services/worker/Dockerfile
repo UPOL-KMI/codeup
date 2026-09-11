@@ -6,6 +6,10 @@ FROM debian:12-slim AS builder
 RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential cmake pkg-config \
         libboost-all-dev libzmq3-dev libyaml-cpp-dev libcurl4-openssl-dev libarchive-dev libcap-dev \
+        # isolate 2.x links -lseccomp (1.8.1 did not), and `make install` depends on
+        # isolate-cg-keeper, which needs libsystemd -- we do not run that daemon, but installing
+        # upstream's own target list is cheaper than reimplementing `install` here.
+        libseccomp-dev libsystemd-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # --- Python 3.13 ---
@@ -41,7 +45,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # is reused as-is, only its *install location* changes.
 WORKDIR /src/isolate
 COPY repos/isolate/. .
-RUN make isolate isolate-check-environment && make install DESTDIR=/staging
+RUN make isolate isolate-check-environment isolate-cg-keeper && make install DESTDIR=/staging
 
 # --- recodex-worker + judges ---
 WORKDIR /src/worker
@@ -54,7 +58,7 @@ RUN mkdir build && cd build \
 FROM debian:12-slim
 RUN apt-get update && apt-get install -y --no-install-recommends \
         libzmq5 libyaml-cpp-dev libcurl4 libarchive13 \
-        libboost-system-dev libboost-program-options-dev libcap2 \
+        libboost-system-dev libboost-program-options-dev libcap2 libseccomp2 \
         ca-certificates gettext-base \
         # runtime libs for the from-source Python 3.13 build below
         libssl3 libffi8 libsqlite3-0 libbz2-1.0 libreadline8 \
@@ -102,6 +106,27 @@ COPY --from=builder /staging/usr /usr
 COPY --from=builder /staging/etc /etc
 COPY --from=builder /staging/var /var
 
+# --- isolate configuration: ours, not upstream's ---
+# `make install` lays down isolate's own `default.cf`, and 2.x's defaults do not fit a container:
+# `cg_root = auto:/run/isolate/cgroup` expects isolate-cg-keeper to have written that file under
+# systemd, and `subid_user = isolate` expects /etc/subuid entries. Both are the right answers on a
+# systemd host and neither exists here, so this overwrites it. Configuration belongs to the
+# deployment rather than to our fork of the source -- keeping it here is also what makes the fork a
+# clean copy of upstream 2.7.
+#
+# `cg_root` points at a subtree the entrypoint creates in the *host's* root cgroup and delegates
+# controllers to (see docker-entrypoint.sh for why the root and not the container's own cgroup).
+# `first_uid`/`first_gid`/`num_boxes` are 2.x's alternative to `subid_user` and are what 1.8.1 used
+# here, so sandbox uids are unchanged.
+RUN printf '%s\n' \
+        'box_root = /var/local/lib/isolate' \
+        'lock_root = /run/isolate/locks' \
+        'cg_root = /sys/fs/cgroup/isolate' \
+        'first_uid = 60000' \
+        'first_gid = 60000' \
+        'num_boxes = 1000' \
+    > /usr/local/etc/isolate
+
 # make python3.13 (see builder stage) the `python3`; /usr/local/bin precedes
 # /usr/bin on Debian's default PATH, so this takes priority without touching
 # anything under /usr itself.
@@ -120,7 +145,7 @@ COPY services/worker/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 # NOTE: this container must run as root (isolate is setuid-root and manipulates
-# cgroups/namespaces directly) and with `privileged: true` + host cgroup v1 mount,
+# cgroups/namespaces directly) and with `privileged: true` + host cgroup v2 mount,
 # see docker-compose.yaml. This is intentional: the worker is the one component in
 # this stack that is designed to execute untrusted code.
 ENTRYPOINT ["docker-entrypoint.sh"]
