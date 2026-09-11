@@ -22,6 +22,12 @@ ORG="https://github.com/upol-kmi"
 REPO_PREFIX="upcode-"
 UPSTREAM_ORG="https://github.com/ReCodEx"
 
+# **The repos we commit into are cloned over SSH, the mirrors over HTTPS**, and the difference is
+# not cosmetic: an HTTPS remote needs a credential helper to push, and without one `git push` fails
+# with "could not read Username for 'https://github.com'" from a repository that otherwise looks
+# correctly set up. The mirrors are never pushed to, so HTTPS is right for them -- it needs no key.
+ORG_SSH="git@github.com:upol-kmi"
+
 # Repositories we commit into: full clone, and never force over local work.
 DEV_REPOS=(api worker isolate)
 
@@ -43,8 +49,9 @@ mkdir -p repos
 # it, so it is pinned straight to upstream rather than forked. Everything else comes from our org.
 source_url() {
     case "$1" in
-        web-app) printf '%s/web-app.git\n' "$UPSTREAM_ORG" ;;
-        *)       printf '%s/%s%s.git\n' "$ORG" "$REPO_PREFIX" "$1" ;;
+        web-app)          printf '%s/web-app.git\n' "$UPSTREAM_ORG" ;;
+        api|worker|isolate) printf '%s/%s%s.git\n' "$ORG_SSH" "$REPO_PREFIX" "$1" ;;
+        *)                printf '%s/%s%s.git\n' "$ORG" "$REPO_PREFIX" "$1" ;;
     esac
 }
 
