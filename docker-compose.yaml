@@ -80,6 +80,8 @@ services:
       SMTP_PASSWORD: ${SMTP_PASSWORD}
       SMTP_SECURE: ${SMTP_SECURE}
       RECODEX_SEED_DB: ${RECODEX_SEED_DB}
+      RECODEX_INSTANCE_NAME: ${RECODEX_INSTANCE_NAME}
+      RECODEX_INSTANCE_DESCRIPTION: ${RECODEX_INSTANCE_DESCRIPTION}
     volumes:
       - api_storage:/opt/recodex-core/storage
       - api_log:/opt/recodex-core/log

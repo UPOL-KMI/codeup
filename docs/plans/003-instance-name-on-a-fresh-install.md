@@ -1,6 +1,9 @@
 # 003 — A fresh install names the operator's own university
 
-**Status:** planned, not started · **Written:** 2026-09-11 · **Asked for by:** the operator
+**Status:** done, 2026-09-11 · **Written:** 2026-09-11 · **Asked for by:** the operator
+
+> **Outcome.** Option 2 — renamed after `db:fill init` from `RECODEX_INSTANCE_NAME` in `.env`. See
+> "What was built" at the end.
 
 ## Goal
 
@@ -83,3 +86,50 @@ A stack brought up against an empty database answers `/v1/instances` with
 
 - The application's own title (`RECODEX_TITLE`), which is already configurable and already set.
 - Anything about the `demo` fixtures, which this deployment does not load.
+
+
+---
+
+## What was built
+
+**Option 2, the `.env` one**, because it is the only one of the three that leaves the fork clean
+*and* makes the next institution's install a one-line edit. `RECODEX_INSTANCE_NAME` and
+`RECODEX_INSTANCE_DESCRIPTION` live in `.env`/`.env.example` beside `RECODEX_SEED_DB`, reach the
+api service through `docker-compose.yaml`, and `services/api/docker-entrypoint.sh` applies them
+immediately after `db:fill init`, inside the same one-shot seeding branch.
+
+**Two things about the implementation are deliberate.**
+
+It renames through **PHP with a prepared statement**, not the `mysql` client. An apostrophe is
+ordinary in a university's name, and building the statement by shell interpolation is how that
+becomes a syntax error at best. The tool was already in the container.
+
+It **finds the instance first and refuses if there is more than one**, rather than updating every
+row the join matches. On a freshly seeded database there can only be one — but the same join on a
+*used* database matches every instance that has ever existed, and the development box turned out to
+be carrying **thirty**: twenty-nine orphans named `e2e instance …` / `e2e licence …`, left by the
+spec that creates one, from runs that predate its cleanup hook (`web-next`'s PF-014). A rename that
+silently hit all of those would be worse than one that stops and says so.
+
+**Verified against the running database, both ways, without changing it:** the guard refuses on
+this deployment and names the count (`expected exactly one, found 30`); and with the orphans
+removed inside a transaction, the rename touches exactly one row, writes
+`Univerzita Palackého v Olomouci` with its diacritics intact, empties the description, and the
+transaction is rolled back — 30 instances and the `Frankenstein` row still there afterwards.
+
+### The two questions this plan left open, answered
+
+- **The description** is a second variable, defaulting to **empty**. "First underwater IT
+  university for fish and shrimps" cannot survive next to a real name, and inventing one for
+  somebody else's university is not this file's business.
+- **This existing deployment is not renamed**, and the guard is what decides that rather than a
+  preference: it holds thirty instances, so the entrypoint refuses. Renaming it is one
+  `POST /v1/instances/{id}` through the admin screens whenever the operator wants it.
+
+### Still open
+
+- **The twenty-nine orphaned instances** are a finding, not this plan's work. They are invisible to
+  `/v1/instances` and harmless, and they are why the guard exists; clearing them is a separate
+  decision, as is whether a wipe-and-reseed is the moment to do it.
+- **Nothing has been run against a genuinely empty database yet.** Both halves are verified in a
+  transaction against the real schema, which is as close as this can get without a wipe.

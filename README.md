@@ -229,6 +229,13 @@ c-gcc-linux, cxx-gcc-linux, python3 — matching the worker's default toolchains
 `docker-entrypoint.sh` imports them (`runtimes:import`) alongside the `init` fixtures on
 first boot.
 
+**The instance is named from `.env` on that same first boot.** Upstream's `init` fixture calls it
+"Frankenstein University, Atlantida", which is ReCodEx's own test data; `RECODEX_INSTANCE_NAME`
+(and the optional `RECODEX_INSTANCE_DESCRIPTION`) is what a deployment calls itself instead. The
+entrypoint applies it right after `db:fill init`, and **only when the database holds exactly one
+instance** — which is true of a freshly seeded one and stops being true later, so an existing
+deployment is renamed through the admin screens rather than by editing `.env`.
+
 To add a language: install its toolchain in `services/worker/Dockerfile`, add the matching
 environment name to `headers.env` in `services/worker/config.yml.template`, download the
 matching package from the [generic/](https://github.com/ReCodEx/runtimes/tree/main/generic)
