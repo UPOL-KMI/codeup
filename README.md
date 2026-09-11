@@ -16,6 +16,7 @@ against a running stack.
 ├── pull-repos.sh              # fetches source into ./repos, at the revisions in repos.lock
 ├── repos.lock                 # the source revisions this stack is pinned to
 ├── COMPATIBILITY.md           # what was verified about them, and what is known not to work
+├── docs/plans/                # work spanning more than one repo is planned here
 ├── repos/                     # source trees (gitignored, populated by pull-repos.sh)
 │   ├── api/  worker/  isolate/                     # our forks, we commit into these
 │   ├── broker/  monitor/  cleaner/                 # our forks, unmodified mirrors
