@@ -1,0 +1,37 @@
+# repos.lock -- the source revisions this deployment is verified against.
+#
+# Why this file exists: `pull-repos.sh` used to fetch every repository's default branch, which is a
+# moving target. A stack that worked last week could stop working after a `git pull` nobody thought
+# of as a change, and there was nowhere to look up what had been working. This is that place.
+#
+# Read by `pull-repos.sh`. Precedence, highest first:
+#
+#   1. a per-repo environment variable   API_REF=upcode ./pull-repos.sh
+#   2. the global REF variable           REF=master ./pull-repos.sh
+#   3. this file
+#   4. the repository's default branch
+#
+# Run `NO_LOCK=1 ./pull-repos.sh` to ignore it entirely and take the default branches.
+#
+# **Commits, not branches, and deliberately.** A branch name would put this file back in the
+# business of tracking a moving target. For day-to-day work on a fork, pass the branch yourself
+# (`ISOLATE_REF=upcode ./pull-repos.sh`); when a change is verified, bump the commit here and say
+# what was verified in COMPATIBILITY.md.
+#
+# Note that `api` is pinned to the base of its `upcode` branch rather than to the branch tip: the
+# tip carries a README commit that was not part of the verified build. Code-identical, but this
+# file is about what was actually run.
+
+api        7471b71f7189468ee287a292786d8497ed908020   # upol-kmi/upcode-api, base of `upcode`
+web-app    fc6fdaf0f3144a9acb9c702e379cb8fe1eb13413   # ReCodEx/web-app (not forked -- see below)
+worker     f267aa9d46aa908c56632af351d51f140de7e01c   # upol-kmi/upcode-worker, base of `upcode`
+broker     abdc95cfad4586a9cd2f17bdd5fdaa48cc60445d   # upol-kmi/upcode-broker
+monitor    e6f8a1dd25c5837c0aef5019b91e5987bfc15c85   # upol-kmi/upcode-monitor
+isolate    25d3f48882a08bee1d348476e9ed3af205dc1316   # upol-kmi/upcode-isolate, base of `upcode`
+cleaner    0a5e390241866fac52755098fc2cb3882e106e83   # upol-kmi/upcode-cleaner
+web-next   78da4b11a2771f2680cb9c104707af6a0e92cf04   # upol-kmi/upcode-web-ui
+
+# `web-app` is the one repository taken straight from upstream. It is the legacy frontend, which
+# `web-next` exists to replace, so nothing of ours will ever change in it -- forking it would mean
+# maintaining a copy of something we intend to delete. Pinning it by commit gives the same
+# reproducibility a fork would, without the copy.

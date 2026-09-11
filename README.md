@@ -13,10 +13,14 @@ against a running stack.
 .
 ├── docker-compose.yaml       # the whole stack
 ├── .env.example               # copy to .env and fill in secrets
-├── pull-repos.sh              # fetches source (upstream + our own frontend) into ./repos
+├── pull-repos.sh              # fetches source into ./repos, at the revisions in repos.lock
+├── repos.lock                 # the source revisions this stack is pinned to
+├── COMPATIBILITY.md           # what was verified about them, and what is known not to work
 ├── repos/                     # source trees (gitignored, populated by pull-repos.sh)
-│   ├── api/  web-app/  worker/  broker/  monitor/  isolate/  cleaner/   # upstream ReCodEx
-│   └── web-next/                                                       # our own frontend, see below
+│   ├── api/  worker/  isolate/                     # our forks, we commit into these
+│   ├── broker/  monitor/  cleaner/                 # our forks, unmodified mirrors
+│   ├── web-app/                                    # upstream ReCodEx, not forked
+│   └── web-next/                                   # our own frontend, see below
 └── services/                  # our deployment code, one folder per component
     ├── api/                   # core REST API (PHP/Nette) + nginx
     ├── web-app/                # legacy React frontend (Node/Express SSR)
@@ -30,20 +34,47 @@ against a running stack.
 `services/` and `docker-compose.yaml` **is** meant to be committed and is what you transfer
 to the production server.
 
-`repos/web-next` is **not** an upstream ReCodEx repo — it's our own from-scratch Next.js
+### Sources are pinned, and most of them are ours
+
+The ReCodEx components are fetched from **our forks** in the
+[`upol-kmi`](https://github.com/upol-kmi) organisation, named `upcode-<component>`, at the exact
+commits listed in **`repos.lock`**. That file exists because fetching each repository's default
+branch is a moving target: a stack that worked last week could stop working after a `git pull`
+nobody thought of as a change, and there was nowhere to look up what had been working.
+**`COMPATIBILITY.md`** is where what-was-verified lives, including the things that are known not to
+work yet and the path out of each.
+
+In every fork, `master` is an untouched mirror of upstream and our work lives on `upcode`. Only
+`api`, `worker` and `isolate` have that branch; `broker`, `monitor` and `cleaner` are unmodified
+mirrors. `web-app` is the one component **not** forked — it is the legacy frontend that `web-next`
+replaces, so nothing of ours will ever change in it, and pinning it by commit to upstream gives the
+same reproducibility without maintaining a copy of something we intend to delete.
+
+Overrides, highest precedence first:
+
+```bash
+./pull-repos.sh                      # the verified revisions, from repos.lock
+ISOLATE_REF=upcode ./pull-repos.sh   # one repo from a branch, for working on a fork
+REF=master ./pull-repos.sh           # everything from one ref
+NO_LOCK=1 ./pull-repos.sh            # ignore the lock, take default branches
+```
+
+`repos/web-next` is **not** a ReCodEx repo at all — it's our own from-scratch Next.js
 replacement for `web-app`, developed in its own separate git repository
-(`git@github.com:jurja00/codeUp-web-ui.git`). `pull-repos.sh` fetches it into the same gitignored
+(`upol-kmi/upcode-web-ui`). `pull-repos.sh` fetches it into the same gitignored
 `repos/` tree as the upstream repos, purely for convenience — one script still brings the whole
 stack together. It builds and runs as its own `web-next` service (see `docker-compose.yaml`),
 side by side with the legacy `web-app`, on its own port (`WEB_NEXT_PORT`, see below) rather than
 behind the `proxy` service — this is deliberate while the new frontend is still pre-parity with
 the legacy one; see that repo's own `docs/DECISIONS.md` for the reasoning.
 
-Unlike the upstream repos (pure build inputs, always force-updated to the pinned ref),
-`repos/web-next` is meant to be developed in directly — it's cloned in full (not shallow) on a
-real branch. Re-running `./pull-repos.sh` only fast-forwards it if there are no uncommitted
-changes and no local commits missing from the remote; otherwise it leaves the working tree
-untouched and tells you so, rather than discarding in-progress work.
+`repos/web-next` is meant to be developed in directly, and so now are `repos/api`,
+`repos/worker` and `repos/isolate` — they are our forks, and a push from a shallow clone is refused
+outright, which is why those three are cloned in full rather than shallow. Re-running
+`./pull-repos.sh` only moves them if there are no uncommitted changes and no local commits missing
+from the remote; otherwise it leaves the working tree untouched and tells you so, rather than
+discarding in-progress work. The remaining four (`web-app`, `broker`, `monitor`, `cleaner`) are pure
+build inputs: shallow, and always forced to the pinned revision.
 
 ## Architecture
 
@@ -91,7 +122,7 @@ real DNS to be live yet — useful for testing before you've pointed a domain at
 ## Quick start
 
 ```bash
-./pull-repos.sh              # clone upstream ReCodEx repos + our own frontend into ./repos
+./pull-repos.sh              # fetch the pinned sources (see repos.lock) into ./repos
 cp .env.example .env         # then edit .env: passwords, JWT_SECRET, APP_DOMAIN, SMTP...
 docker compose build         # ~5-10 min the first time (compiles worker/broker/isolate from source)
 docker compose up -d
@@ -256,7 +287,7 @@ as a conservative, long-supported baseline, not because newer MariaDB doesn't wo
 ## Updating
 
 ```bash
-./pull-repos.sh               # or REF=<tag> ./pull-repos.sh to pin a specific release
+./pull-repos.sh               # bump repos.lock first, and COMPATIBILITY.md after verifying
 docker compose build
 docker compose up -d
 ```
