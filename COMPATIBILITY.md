@@ -19,15 +19,17 @@ Bump both together: change `repos.lock`, re-verify, and add a row here saying wh
 | `broker`   | `upol-kmi/upcode-broker`     | `abdc95c`  | 2022-12-04 |
 | `cleaner`  | `upol-kmi/upcode-cleaner`    | `0a5e390`  | 2025-07-16 |
 | `web-app`  | `ReCodEx/web-app` (upstream) | `fc6fdaf`  | 2026-08-01 |
-| `web-next` | `upol-kmi/upcode-web-ui`     | `78da4b1`  | 2026-09-11 |
+| `web-next` | `upol-kmi/upcode-web-ui`     | `a118d4e`  | 2026-09-11 |
 
-**How it was verified.** The database and file storage were wiped and rebuilt from the api
-entrypoint's fresh-database path, then seeded (`pnpm seed`). Against that instance, the new
-frontend's full suite was run twice: **313 end-to-end tests, 0 failures**, with `retries` at 0, plus
-287 unit tests and five static checks (`typecheck`, `lint`, `format:check`, `build`, `test`). After
-both runs the seeded fixtures were **unchanged** — four solutions on the primary assignment, one on
-the second-deadline one, none on the deliberately-empty one, the review request still standing —
-which is the part that says the suite does not quietly consume its own fixtures.
+**How it was verified.** Against a seeded instance (`pnpm seed`), the new frontend's full suite:
+**311 end-to-end tests pass and 3 skip, 0 failures**, with `retries` at 0, plus 287 unit tests and
+five static checks (`typecheck`, `lint`, `format:check`, `build`, `test`). The three skips are one
+fixture this deployment can no longer produce — a submission failure, which took a sandbox that
+could not run (see below and `web-next`'s PF-017) — and each says so rather than passing quietly.
+
+The previous verified set was built on a wiped database and ran 313 tests twice with the seeded
+fixtures unchanged afterwards, which is the stronger check of the two and worth repeating here
+whenever the database is next rebuilt; this set was verified on an instance seeded in place.
 
 **Evaluation is verified end to end as of 2026-09-11** — a correct seeded solution scores full
 points and a wrong one zero, through the real submit path. See "The sandbox works" below for what
