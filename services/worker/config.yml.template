@@ -37,7 +37,14 @@ limits:
     disk-files: 100
     environ-variable:
         HOME: /box
-        PATH: /usr/bin:/bin
+        # **/usr/local/bin comes first, and Python is why.** This image builds Python 3.13 from
+        # source into /usr/local (Debian 12 ships only 3.11), so `python3` exists at
+        # /usr/local/bin/python3 and *not* at /usr/bin/python3. isolate's default rules bind /usr
+        # into the sandbox, so the interpreter is visible there -- it was simply not on this PATH,
+        # and every Python submission died with "Exited with error status 127". That went unnoticed
+        # because the sandbox could not start at all on a cgroup v2 host until isolate 2.7, so no
+        # submission ever got far enough to fail this way.
+        PATH: /usr/local/bin:/usr/bin:/bin
         # .NET writes a first-run marker, a telemetry sentinel and a NuGet fallback folder under
         # $HOME the first time the CLI runs. Inside isolate, $HOME is the per-submission /box,
         # which is wiped between runs -- so without these every single C# submission would pay

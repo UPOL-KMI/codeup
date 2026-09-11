@@ -99,32 +99,55 @@ with `FOREIGN_KEY_CHECKS=0`. An **existing** database still runs `migrations:mig
 
 ## Known not working, with the path out
 
-### Evaluation: `isolate` needs cgroup v1, this host has v2
+### The sandbox works — evaluation still does not, for a different reason
 
-The single thing that stops this being usable. Verified on the running stack:
+**Fixed 2026-09-11: the sandbox runs.** Isolate is **2.7** now (plan 001), the worker delegates
+itself a cgroup v2 subtree at start-up, and all of this is verified on Docker Desktop for macOS:
 
 ```
-Checking for cgroup support for memory ... CAUTION
-WARNING: the memory is not present. isolate --cg cannot be used.
-Checking for swap ... FAIL
+== cgroup v2 subtree ready at /sys/fs/cgroup/isolate (controllers: cpuset cpu memory) ==
+Checking for cgroup support for memory.max ... PASS       (was CAUTION / "cannot be used")
+Using cgroup root: /sys/fs/cgroup/isolate
 ```
 
-The vendored Isolate is **1.8.1**, which understands only cgroup v1 (legacy/hybrid hierarchy).
-Current Debian/Ubuntu/RHEL and Docker Desktop default to v2's unified hierarchy. Submitted code
-therefore resolves to an infrastructure failure, never to pass or fail.
+Python runs inside it and the limits are real, checked one at a time by hand:
 
-Two ways out, and they are genuinely different in size:
+| Case | Result |
+| ---- | ------ |
+| read stdin, print a sum | `exitcode:0`, correct output, meta carries all seven keys the worker parses |
+| infinite loop, `--wall-time=2` | `status:TO`, "Time limit exceeded (wall clock)", killed at 2.002 s |
+| allocate 400 MB, `--cg-mem=64MB` | `cg-mem:65536`, `cg-oom-killed:1`, `exitsig:9`, `status:SG` |
+| `sys.exit(3)` | `status:RE`, "Exited with error status 3" |
 
-- **Boot the host kernel in cgroup v1 mode** — `systemd.unified_cgroup_hierarchy=0` on the kernel
-  command line. No code changes at all. This is what the README recommends for production and is
-  the only option that needs nothing from us. Not available on Docker Desktop for macOS.
-- **Move to Isolate v2** — `ioi/isolate` has tags up to **`v2.7`**, already fetchable as the `ioi`
-  remote in `repos/isolate`. Note that it is not a superset: *"This version of Isolate requires v2"*
-  — it is the mirror image of 1.8.1, so this is a version change, not a patch. It also expects an
-  `isolate.scope` cgroup subtree delegated by systemd plus an `isolate-cg-keeper` daemon; in a
-  container without systemd that means pointing Isolate's config at the mounted cgroup filesystem by
-  hand. And `worker` drives Isolate over a command line that changed between 1.x and 2.x, so
-  `upcode-worker` is the other half of the work.
+Memory limits *are* enforced despite `isolate-check-environment`'s swap CAUTION — it now reads
+"although accounted for", where before it was a FAIL saying accounting was absent.
+
+**What is still broken is a separate, older bug that the cgroup failure had been hiding.** A real
+submission now reaches the sandbox and fails there instead of before it: `initFailed=False`, and
+`Test 1` reports `Exited with error status 2`. Traced to the compiled job configuration, where the
+`run` task is
+
+```yaml
+bin: /usr/bin/env
+args: [python3, cb83045aeb…  (the runner), "${EVAL_DIR}/"]
+```
+
+— the third argument is a **directory instead of the student's file**, so the runner's own
+`except BaseException: sys.exit(2)` fires when it tries to open it. In the same job the solution is
+copied to a file named literally `*.py`: the `source-files` pattern from the environment config is
+passed through unexpanded rather than resolved to the submitted file name. Setting the exercise
+config's `entry-point` to `solution.py` by hand persists but does not change the compiled job, so
+the entry point is not read from where it was written.
+
+This is exercise-configuration territory, not sandbox territory, and it gets its own plan —
+**`docs/plans/002`**. Nothing about it is specific to macOS or to cgroups; it would fail the same
+way on a production host.
+
+**One real bug was found and fixed on the way**, also previously masked: the worker gave sandboxes
+`PATH=/usr/bin:/bin`, and this image builds Python 3.13 from source into `/usr/local` (Debian 12
+ships 3.11), so `/usr/bin/python3` does not exist and every Python submission would have died with
+"Exited with error status 127". `services/worker/config.yml.template` now puts `/usr/local/bin`
+first.
 
 ### Mail: not configured
 
