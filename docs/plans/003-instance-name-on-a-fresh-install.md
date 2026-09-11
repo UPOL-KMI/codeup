@@ -126,10 +126,25 @@ transaction is rolled back — 30 instances and the `Frankenstein` row still the
   preference: it holds thirty instances, so the entrypoint refuses. Renaming it is one
   `POST /v1/instances/{id}` through the admin screens whenever the operator wants it.
 
-### Still open
+### Verified on an empty database, and one claim above was wrong
 
-- **The twenty-nine orphaned instances** are a finding, not this plan's work. They are invisible to
-  `/v1/instances` and harmless, and they are why the guard exists; clearing them is a separate
-  decision, as is whether a wipe-and-reseed is the moment to do it.
-- **Nothing has been run against a genuinely empty database yet.** Both halves are verified in a
-  transaction against the real schema, which is as close as this can get without a wipe.
+The stack was wiped and brought up from nothing on 2026-09-11. The entrypoint said so itself --
+`Naming the instance 'Univerzita Palackého v Olomouci'... Named 1 localized text(s).` -- and
+`/v1/instances`, which the landing page reads unauthenticated, answers with that name and an empty
+description. All six runtime packages imported themselves on the same boot, so the hand import and
+its `chown` are only ever needed on an instance that was already seeded. The twenty-nine orphaned
+instances went with the wipe.
+
+**"Nothing in the new frontend hardcodes the name any more" was wrong, and it cost five test
+failures.** That claim was checked against `landing.spec.ts`, which PF-010 had already fixed, and
+generalised from one file. In fact `instances.spec.ts` (three tests), `groups.spec.ts` and
+`command-palette.spec.ts` all had `Frankenstein` written into them -- because **an instance's name
+is also its root group's name**, so it shows up in the group list and in search as well as on the
+instances screen. The lesson is the narrow one: a fact about one spec file is not a fact about the
+suite, and `grep` would have said so in a second.
+
+Fixed rather than worked around: `e2e/helpers/core-api.ts` gained `instanceName()` and those tests
+read the name instead of knowing it. The command palette now searches for the **seeded group**,
+which is a fixture the suite owns, rather than for the instance -- whose name is whatever the
+operator called their university. (That change wanted `exact: true` as well: the seeded group has a
+subgroup whose name contains its own.)
