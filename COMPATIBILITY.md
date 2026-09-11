@@ -150,6 +150,21 @@ ZIP archive cannot be graded by an exercise whose `source-files` is `*.py`. core
 wildcard against the *uploaded* file name (`solution.zip`), not the entries inside it, so such a
 submission is refused. That is upstream behaviour, not something this deployment introduced.
 
+**C# grades too, as of the same day** — and getting there found a second bug of the same family as
+plan 001's PATH one. `/usr/bin/dotnet` is a symlink to `/opt/dotnet/dotnet`, and isolate binds
+`/usr`, `/bin` and `/lib` into the sandbox and nothing else, so inside it that symlink pointed
+nowhere: every C# submission died with `execve("/usr/bin/dotnet"): No such file or directory`,
+which reads like a missing toolchain and was a missing **mount**. `services/worker/config.yml`
+binds `/opt` now, read-only. Verified end to end: a reference solution compiled by Roslyn
+(`Visual C# Compiler version 4.11.0`) scores 1.0 with `Test 1` OK, and Python still does too.
+
+**Java's toolchain is reachable in the sandbox but is not verified end to end.** It had the same
+class of fault wearing Debian's clothes: the JDK's `conf/` is symlinks into `/etc/java-17-openjdk`,
+which the sandbox could not see, so `javac` started and died with
+`java.lang.InternalError: Error loading java.security file`. That directory is bound now and
+`javac -version` / `java -version` both answer inside a sandbox — but no Java exercise has been
+configured or submitted, so nothing here claims a Java submission grades.
+
 **One real bug was found and fixed on the way**, also previously masked: the worker gave sandboxes
 `PATH=/usr/bin:/bin`, and this image builds Python 3.13 from source into `/usr/local` (Debian 12
 ships 3.11), so `/usr/bin/python3` does not exist and every Python submission would have died with
@@ -168,10 +183,18 @@ builds and tests the request side against core-api regardless; nothing arrives.
 `cs-dotnet-core` and `java`, added on 2026-08-21 and verified then in rebuilt images — dotnet
 8.0.424, javac 17.0.20, both runtime packages imported, the API advertising all six.
 
-**The containers running today have four.** Verified 2026-09-11: `recodex-api` was built
-2026-08-17 and `recodex-worker` 2026-07-30, both *before* that change, so `dotnet` and `javac` are
-absent from the worker image and `/v1/runtime-environments` answers `bash`, `c-gcc-linux`,
-`cxx-gcc-linux`, `python3`. Nothing is wrong with the code; the images are simply older than it.
+**All six are in the running stack as of 2026-09-11**, after `docker compose build api worker` and
+importing the two packages by hand. What follows is the state before that, kept because the trap it
+describes is the one that recurs. **The api image was the one behind**. Re-checked
+2026-09-11 after plan 001: `recodex-worker` was rebuilt that morning and **does carry the
+toolchains** — `dotnet 8.0.425` and `javac 17.0.20.1`, confirmed inside the running container. It is
+`recodex-api`, built 2026-08-17, that predates the change, so the `cs-dotnet-core` and `java`
+runtime packages its Dockerfile fetches are not in the image and `/v1/runtime-environments` answers
+`bash`, `c-gcc-linux`, `cxx-gcc-linux`, `python3`.
+
+An earlier version of this paragraph said both images were old and named the worker's build date as
+2026-07-30; plan 001's rebuild had already overtaken it. Nothing is wrong with the code — and the
+rebuild this needs is `docker compose build api`, not both.
 
 **And rebuilding is necessary but not sufficient** — this is the part that will waste an afternoon
 if it is not written down. `services/api/docker-entrypoint.sh` gates both `db:fill init` and the
@@ -179,11 +202,21 @@ if it is not written down. `services/api/docker-entrypoint.sh` gates both `db:fi
 That marker was created by the wipe on 2026-09-11, so on the next boot the import is **skipped** and
 a freshly built api image will still not register `cs-dotnet-core` with core-api. Two ways round it:
 
+**And a third thing, found by doing it**: `runtimes:import` run through `docker compose exec`
+runs as **root**, because this container has no `USER` directive, so every file it writes into
+`storage/` is root-owned and `0600`. php-fpm serves as `www-data` and cannot read them, so the
+worker's very next job fails with `Cannot fetch files ... (500) HTTP response code said error` and
+the blob is sitting right there on disk. The entrypoint chowns after its own console commands; a
+hand-run import has to do the same.
+
 ```bash
 # Rebuild, then import the new packages by hand -- keeps the database.
-docker compose build api worker && docker compose up -d
+# `worker` only if its toolchains are older than the change; check before assuming.
+docker compose build api && docker compose up -d
 docker compose exec api php bin/console runtimes:import --yes     /opt/recodex-runtimes/cs-dotnet-core-2024-12-15.zip
 docker compose exec api php bin/console runtimes:import --yes     /opt/recodex-runtimes/java-2024-12-15.zip
+# ...and hand the files back to the user that serves them.
+docker compose exec api chown -R www-data:www-data /opt/recodex-core/storage
 ```
 
 or wipe `mysql_data` + `api_storage` again and let first boot do it, which also costs the seeded

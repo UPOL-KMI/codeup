@@ -93,6 +93,25 @@ Ordered so that the cheap discriminator comes first.
 - Whether C# is affected the same way. Its pipeline is a different one (Roslyn), and the
   toolchains are not in the running images yet (see COMPATIBILITY.md), so this has not been looked
   at. Worth checking straight after Python works, before concluding anything about C#.
+
+  **Answered, 2026-09-11: no, and the reason is structural.** `hasEntryPoint` is declared `true` by
+  exactly two of the fifteen installed pipelines -- Python's and Bash's, the interpreted ones. C,
+  C++, C# and Java compile to a single artefact, so "which file do I start" is not a question they
+  have, and the C# execution pipeline declares no `entry-point` variable at all (it runs
+  `Program.exe`, which its compilation pipeline produces). So **fault 3 cannot touch C#**. Faults 1
+  and 2 are environment-independent and were the seed's, in the one exercise it configures, which
+  is python3 only. Corroborating fault 1 from another direction: all six runtimes declare
+  `source-files` as a **scalar** wildcard in `defaultVariables` -- `*.py`, `*.sh`, `*.cs`,
+  `*.java`, `*.{c,h}`, `*.{cpp,h,hpp}` -- so the array the seed wrote was against the convention of
+  every environment, not just Python's.
+
+  **What checking it did find is a different bug, in the worker rather than in any configuration**:
+  `/opt` was not bound into the sandbox, so `/usr/bin/dotnet` -- a symlink into `/opt` -- pointed
+  nowhere inside it and every C# submission would have died with
+  `execve("/usr/bin/dotnet"): No such file or directory`. Same family as plan 001's PATH fix. With
+  `/opt` bound, a C# reference solution compiles under Roslyn and scores 1.0. Java had the same
+  fault by way of Debian symlinking the JDK's `conf/` into `/etc/java-17-openjdk`; that is bound
+  now too and both `javac` and `java` run in a sandbox, though no Java exercise has been submitted.
 - Whether the ReCodEx demo fixtures (`db:fill demo`, which this deployment deliberately does not
   load) contain a correctly configured exercise that could be read as a reference.
 

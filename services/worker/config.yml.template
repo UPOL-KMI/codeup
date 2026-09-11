@@ -57,6 +57,35 @@ limits:
     bound-directories:
         - dst: "/tmp"
           mode: "tmp"
+        # **/opt, read-only, and C# is why.** isolate's default rules bind /usr, /bin and /lib
+        # into the sandbox and nothing else, so a toolchain installed under /opt is invisible
+        # there. The .NET SDK is: `/usr/bin/dotnet` is a symlink to `/opt/dotnet/dotnet`, which
+        # inside the sandbox is a link to nowhere -- every C# submission died with
+        # `execve("/usr/bin/dotnet"): No such file or directory`, which reads like a missing
+        # toolchain and is a missing *mount*. The job configuration compounds the confusion by
+        # naming `/opt/dotnet/sdk/latest/Roslyn/bincore/csc.dll` and the shared runtime under
+        # /opt as well, so nothing about the C# pipelines works without this line.
+        #
+        # Same family as the PATH entry above: the sandbox's view of the filesystem is narrower
+        # than the container's, and anything this image installs outside /usr has to be said out
+        # loud. No `mode`, which means read-only -- the worker's own default for a bound directory
+        # (`helpers/config.cpp`: `dir_perm::RO` unless a mode says otherwise), and a submission has
+        # no business writing to a toolchain.
+        - src: "/opt"
+          dst: "/opt"
+        # **/etc/java-17-openjdk, and Java is the same story told by Debian instead.** The JDK's
+        # `conf/` is a directory of symlinks into /etc -- `java.security` among them -- and the
+        # worker binds only `/etc/alternatives`, so `javac` starts and then dies with
+        # `java.lang.InternalError: Error loading java.security file`. Which looks like a broken
+        # JDK and is, again, a missing mount.
+        #
+        # **The version is in the path**, and nothing else in this stack names it: the Dockerfile
+        # installs `default-jdk` precisely so it does not have to, and on Debian 12 that resolves
+        # to OpenJDK 17. So a Debian base image that moves its default JDK moves this path with it,
+        # and the symptom if this line is not moved too is that one error above. There is no
+        # versionless alias under /etc to point at instead.
+        - src: "/etc/java-17-openjdk"
+          dst: "/etc/java-17-openjdk"
 max-output-length: 4096
 max-carboncopy-length: 1048576
 cleanup-submission: false
