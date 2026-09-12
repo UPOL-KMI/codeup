@@ -157,7 +157,25 @@ ZIP archive cannot be graded by an exercise whose `source-files` is `*.py`. core
 wildcard against the *uploaded* file name (`solution.zip`), not the entries inside it, so such a
 submission is refused. That is upstream behaviour, not something this deployment introduced.
 
-**C# grades too, as of the same day** — and getting there found a second bug of the same family as
+**All six runtime environments grade, verified one at a time on 2026-09-12.** One exercise per
+environment, configured the way the app writes one, a reference solution submitted, the verdict
+read back — `bash`, `c-gcc-linux`, `cxx-gcc-linux`, `python3`, `cs-dotnet-core` and `java` each
+score 1.0 with `Test 1` OK. The probes were deleted afterwards and the seeded fixtures are
+untouched.
+
+**Two of the six needed a fix each, and both were the same shape: a toolchain the sandbox could not
+reach at the path its runtime package names.**
+
+**C and C++ had never compiled here.** `GCC Compilation` and `G++ Compilation` hardcode
+`compiler-exec-path: "/usr/local/recodex-gcc/bin/gcc"` — ReCodEx's own production images build a
+GCC there — while this image installs Debian's into `/usr/bin`. Every C submission would have died
+with `execve("/usr/local/recodex-gcc/bin/gcc"): No such file or directory`, which reads like a
+missing toolchain and is a toolchain in the wrong place. `services/worker/Dockerfile` links the
+expected path at the real one. **Linked rather than corrected in the pipeline**, because pipelines
+come from the imported runtime package and an edit there is overwritten by the next
+`runtimes:import`; providing the path the package asks for is the deployment's job.
+
+**C# grades too, as of 2026-09-11** — and getting there found a second bug of the same family as
 plan 001's PATH one. `/usr/bin/dotnet` is a symlink to `/opt/dotnet/dotnet`, and isolate binds
 `/usr`, `/bin` and `/lib` into the sandbox and nothing else, so inside it that symlink pointed
 nowhere: every C# submission died with `execve("/usr/bin/dotnet"): No such file or directory`,
@@ -165,12 +183,11 @@ which reads like a missing toolchain and was a missing **mount**. `services/work
 binds `/opt` now, read-only. Verified end to end: a reference solution compiled by Roslyn
 (`Visual C# Compiler version 4.11.0`) scores 1.0 with `Test 1` OK, and Python still does too.
 
-**Java's toolchain is reachable in the sandbox but is not verified end to end.** It had the same
-class of fault wearing Debian's clothes: the JDK's `conf/` is symlinks into `/etc/java-17-openjdk`,
-which the sandbox could not see, so `javac` started and died with
-`java.lang.InternalError: Error loading java.security file`. That directory is bound now and
-`javac -version` / `java -version` both answer inside a sandbox — but no Java exercise has been
-configured or submitted, so nothing here claims a Java submission grades.
+**Java had the same class of fault wearing Debian's clothes:** the JDK's `conf/` is symlinks into
+`/etc/java-17-openjdk`, which the sandbox could not see, so `javac` started and died with
+`java.lang.InternalError: Error loading java.security file`. That directory is bound now, and a
+Java reference solution compiles with `javac` and scores 1.0 — verified on 2026-09-12, where the
+line here used to say only that the toolchain was reachable.
 
 **One real bug was found and fixed on the way**, also previously masked: the worker gave sandboxes
 `PATH=/usr/bin:/bin`, and this image builds Python 3.13 from source into `/usr/local` (Debian 12
@@ -184,7 +201,7 @@ first.
 email verification, invitations by mail and every notification therefore go nowhere. The frontend
 builds and tests the request side against core-api regardless; nothing arrives.
 
-### Language runtimes: C# and Java are in the code, but not in the running stack
+### Language runtimes: all six are in the running stack, and all six grade
 
 **The deployment code has six**: `bash`, `c-gcc-linux`, `cxx-gcc-linux`, `python3`,
 `cs-dotnet-core` and `java`, added on 2026-08-21 and verified then in rebuilt images — dotnet

@@ -64,6 +64,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libssl3 libffi8 libsqlite3-0 libbz2-1.0 libreadline8 \
         libncurses6 libgdbm6 liblzma5 libuuid1 \
         # --- language toolchains available to submitted jobs: extend as needed ---
+        # C and C++: Debian's own GCC 12. See the symlinks below -- the runtime packages do not
+        # look for it here.
         gcc g++ \
         # Java: the java-2024-12-15 runtime package's pipelines invoke plain `javac` and
         # `java`, nothing version-specific, so Debian 12's default JDK (OpenJDK 17) is what
@@ -72,6 +74,25 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         # needed to fetch the .NET SDK below
         wget \
     && rm -rf /var/lib/apt/lists/*
+
+# **Where the C and C++ runtime packages expect a compiler to be.**
+#
+# `GCC Compilation` and `G++ Compilation` hardcode `compiler-exec-path:
+# "/usr/local/recodex-gcc/bin/gcc"` (and `.../g++`) -- ReCodEx's own production images build a
+# GCC there, and the pipelines that ship inside c-gcc-linux-2024-12-15.zip name that path. This
+# image installs Debian's GCC into /usr/bin instead, so without these links every C and C++
+# submission dies in the sandbox with `execve("/usr/local/recodex-gcc/bin/gcc"): No such file or
+# directory` -- which reads like a missing toolchain and is a toolchain in the wrong place.
+#
+# Linked rather than fixed in the pipeline, because the pipelines come from the imported runtime
+# package: editing one diverges from upstream and is overwritten the next time
+# `runtimes:import` runs. Providing the path the package asks for is the deployment's job.
+#
+# Found by submitting: nothing had ever reached a C compiler on this deployment before the
+# sandbox worked.
+RUN mkdir -p /usr/local/recodex-gcc/bin \
+    && ln -s /usr/bin/gcc /usr/local/recodex-gcc/bin/gcc \
+    && ln -s /usr/bin/g++ /usr/local/recodex-gcc/bin/g++
 
 # .NET 8 for the `cs-dotnet-core` runtime, installed to /opt/dotnet.
 #

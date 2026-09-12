@@ -105,6 +105,13 @@ Ordered so that the cheap discriminator comes first.
   `*.java`, `*.{c,h}`, `*.{cpp,h,hpp}` -- so the array the seed wrote was against the convention of
   every environment, not just Python's.
 
+  **Finished 2026-09-12 by doing the same for the rest**, one exercise per environment: all six
+  grade — `bash`, `c-gcc-linux`, `cxx-gcc-linux`, `python3`, `cs-dotnet-core`, `java`, each 1.0
+  with `Test 1` OK. **C and C++ needed their own fix and had never compiled here**: their pipelines
+  name `/usr/local/recodex-gcc/bin/gcc`, which is where ReCodEx's own images build one, and this
+  image has Debian's in `/usr/bin`. The worker Dockerfile links the expected path at the real one,
+  rather than editing a pipeline the next `runtimes:import` would overwrite.
+
   **What checking it did find is a different bug, in the worker rather than in any configuration**:
   `/opt` was not bound into the sandbox, so `/usr/bin/dotnet` -- a symlink into `/opt` -- pointed
   nowhere inside it and every C# submission would have died with
