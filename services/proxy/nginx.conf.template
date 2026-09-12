@@ -16,8 +16,15 @@ server {
     # ssl_certificate_key /etc/nginx/certs/privkey.pem;
     # if ($scheme = http) { return 301 https://$host$request_uri; }
 
-    location /api/ {
-        proxy_pass http://api:80/;
+    # core-api's public surface is `/api/v1`, and only that: both frontends address it that way
+    # (`services/web-app/env.json.template`'s `API_BASE`, web-next's `API_BASE_PUBLIC`). This was
+    # `location /api/` until the new frontend took over the root, at which point it began
+    # swallowing that app's **own** Route Handlers -- `/api/auth/login`, `/api/upload/...`, every
+    # download route and `/api/search` -- which answered core-api's 404 instead. Logging in was
+    # impossible through this proxy and worked on the app's own port, which is why plan 004's
+    # verification did not see it.
+    location /api/v1 {
+        proxy_pass http://api:80/v1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
