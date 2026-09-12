@@ -5,3 +5,7 @@ data/
 .DS_Store
 .claude/
 JP/
+
+# Zálohy .env nesou stejná tajemství jako .env samotný.
+.env.bak*
+.env.*.bak
