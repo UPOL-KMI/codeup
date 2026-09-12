@@ -10,6 +10,10 @@ headers:
         - python3
         - cs-dotnet-core
         - java
+        # Data-only: the worker runs no toolchain for this one, it runs the exercise author's own
+        # judge against whatever the student uploaded. It still has to be advertised here or the
+        # broker finds no worker for the environment and every such submission becomes a failure.
+        - data-linux
     threads: 1
 hwgroup: "${WORKER_HWGROUP}"
 working-directory: "/var/recodex-worker-wd"

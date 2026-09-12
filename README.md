@@ -225,9 +225,18 @@ dropdown but grading has nothing to execute). `db:fill`'s fixtures only ever pro
 former half (bare rows, no pipelines) for a fixed list that doesn't match what's installed
 anyway, so this deployment does not use them; instead `services/api/Dockerfile` bakes in a
 curated set of [ReCodEx/runtimes](https://github.com/ReCodEx/runtimes) packages (bash,
-c-gcc-linux, cxx-gcc-linux, python3 — matching the worker's default toolchains exactly), and
-`docker-entrypoint.sh` imports them (`runtimes:import`) alongside the `init` fixtures on
-first boot.
+c-gcc-linux, cxx-gcc-linux, python3, cs-dotnet-core, java — matching the worker's toolchains
+exactly — plus `data-linux`), and `docker-entrypoint.sh` imports them (`runtimes:import`)
+alongside the `init` fixtures on first boot.
+
+**`data-linux` is the one that needs no toolchain**, and it is what makes this usable for work
+that is not code. It accepts **any** file (`extensions: ["*"]`) and runs no compiler and no
+student program: the only thing executed is a judge the exercise author uploads, through
+`/usr/bin/recodex-data-only-wrapper.sh`. That judge is **not optional** — with the `custom-judge`
+variable left empty the wrapper tries to execute the sandbox directory itself and every submission
+comes back `FAILED` with `/box/: Is a directory`. For "collect the file, grade it by hand", the
+judge is two lines that echo a message and `exit 0`; the submission then scores 1.0, the message
+appears in the judge log, and the teacher awards the real points through the review screen.
 
 **The instance is named from `.env` on that same first boot.** Upstream's `init` fixture calls it
 "Frankenstein University, Atlantida", which is ReCodEx's own test data; `RECODEX_INSTANCE_NAME`
