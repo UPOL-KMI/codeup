@@ -38,7 +38,7 @@ to the production server.
 ### Sources are pinned, and most of them are ours
 
 The ReCodEx components are fetched from **our forks** in the
-[`upol-kmi`](https://github.com/upol-kmi) organisation, named `upcode-<component>`, at the exact
+[`UPOL-KMI`](https://github.com/UPOL-KMI) organisation, named `upcode-<component>`, at the exact
 commits listed in **`repos.lock`**. That file exists because fetching each repository's default
 branch is a moving target: a stack that worked last week could stop working after a `git pull`
 nobody thought of as a change, and there was nowhere to look up what had been working.
@@ -62,7 +62,7 @@ NO_LOCK=1 ./pull-repos.sh            # ignore the lock, take default branches
 
 `repos/web-next` is **not** a ReCodEx repo at all — it's our own from-scratch Next.js
 replacement for `web-app`, developed in its own separate git repository
-(`upol-kmi/upcode-web-ui`). `pull-repos.sh` fetches it into the same gitignored
+(`UPOL-KMI/upcode-web-ui`). `pull-repos.sh` fetches it into the same gitignored
 `repos/` tree as the upstream repos, purely for convenience — one script still brings the whole
 stack together. It builds and runs as its own `web-next` service (see `docker-compose.yaml`),
 side by side with the legacy `web-app`, on its own port (`WEB_NEXT_PORT`, see below) rather than
@@ -152,7 +152,7 @@ this stack works on a stock modern host, including a Mac.
 ReCodEx vendors isolate **1.8.1**, which is the mirror image — it supports only cgroup **v1** — so
 on a current host it refuses to run and every submission resolves to an infrastructure failure
 rather than a verdict. That is why `repos/isolate` is our fork
-([`upol-kmi/upcode-isolate`](https://github.com/upol-kmi/upcode-isolate), branch `upcode`) carrying
+([`UPOL-KMI/upcode-isolate`](https://github.com/UPOL-KMI/upcode-isolate), branch `upcode`) carrying
 upstream 2.7 instead. Nothing of ReCodEx's own was lost in the move; see
 `docs/plans/001-cgroup-v2-local-evaluation.md`.
 

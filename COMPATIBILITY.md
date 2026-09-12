@@ -12,14 +12,14 @@ Bump both together: change `repos.lock`, re-verify, and add a row here saying wh
 
 | Component  | Source                       | Commit     | Dated      |
 | ---------- | ---------------------------- | ---------- | ---------- |
-| `api`      | `upol-kmi/upcode-api`        | `7471b71f` | 2026-07-23 |
-| `worker`   | `upol-kmi/upcode-worker`     | `f267aa9`  | 2025-10-25 |
-| `isolate`  | `upol-kmi/upcode-isolate`    | `25d3f48`  | 2025-07-14 |
-| `monitor`  | `upol-kmi/upcode-monitor`    | `e6f8a1d`  | 2026-02-13 |
-| `broker`   | `upol-kmi/upcode-broker`     | `abdc95c`  | 2022-12-04 |
-| `cleaner`  | `upol-kmi/upcode-cleaner`    | `0a5e390`  | 2025-07-16 |
+| `api`      | `UPOL-KMI/upcode-api`        | `7471b71f` | 2026-07-23 |
+| `worker`   | `UPOL-KMI/upcode-worker`     | `f267aa9`  | 2025-10-25 |
+| `isolate`  | `UPOL-KMI/upcode-isolate`    | `25d3f48`  | 2025-07-14 |
+| `monitor`  | `UPOL-KMI/upcode-monitor`    | `e6f8a1d`  | 2026-02-13 |
+| `broker`   | `UPOL-KMI/upcode-broker`     | `abdc95c`  | 2022-12-04 |
+| `cleaner`  | `UPOL-KMI/upcode-cleaner`    | `0a5e390`  | 2025-07-16 |
 | `web-app`  | `ReCodEx/web-app` (upstream) | `fc6fdaf`  | 2026-08-01 |
-| `web-next` | `upol-kmi/upcode-web-ui`     | `fcb7d9a`  | 2026-09-11 |
+| `web-next` | `UPOL-KMI/upcode-web-ui`     | `fcb7d9a`  | 2026-09-11 |
 
 **How it was verified.** The database and file storage were wiped and rebuilt from the api
 entrypoint's fresh-database path, then seeded (`pnpm seed`). Against that instance the new
@@ -57,7 +57,7 @@ that was not part of this build. Code-identical; this file is about what ran.
 
 ## What is forked, and what is not
 
-Our forks live in the [`upol-kmi`](https://github.com/upol-kmi) organisation as
+Our forks live in the [`UPOL-KMI`](https://github.com/UPOL-KMI) organisation as
 `upcode-<component>`. In each one:
 
 | Branch   | What it is                                                                |

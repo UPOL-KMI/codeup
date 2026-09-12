@@ -18,7 +18,7 @@ cd "$(dirname "${BASH_SOURCE[0]}")"
 # Our forks live under this organisation, named `upcode-<component>`; see COMPATIBILITY.md for what
 # is forked and why. The destination directories keep the bare upstream names (`repos/api`, ...)
 # because docker-compose.yaml's build contexts point at them.
-ORG="https://github.com/upol-kmi"
+ORG="https://github.com/UPOL-KMI"
 REPO_PREFIX="upcode-"
 UPSTREAM_ORG="https://github.com/ReCodEx"
 
@@ -26,7 +26,7 @@ UPSTREAM_ORG="https://github.com/ReCodEx"
 # not cosmetic: an HTTPS remote needs a credential helper to push, and without one `git push` fails
 # with "could not read Username for 'https://github.com'" from a repository that otherwise looks
 # correctly set up. The mirrors are never pushed to, so HTTPS is right for them -- it needs no key.
-ORG_SSH="git@github.com:upol-kmi"
+ORG_SSH="git@github.com:UPOL-KMI"
 
 # Repositories we commit into: full clone, and never force over local work.
 DEV_REPOS=(api worker isolate)
@@ -38,7 +38,7 @@ MIRROR_REPOS=(web-app broker monitor cleaner)
 # directory are `web-next` (docker-compose.yaml), so it does not go through REPO_PREFIX. SSH rather
 # than HTTPS because this is the one repo everybody pushes to. Default branch is `main`, not
 # `master`.
-WEB_NEXT_URL="git@github.com:upol-kmi/upcode-web-ui.git"
+WEB_NEXT_URL="git@github.com:UPOL-KMI/upcode-web-ui.git"
 WEB_NEXT_DEFAULT_REF="main"
 
 LOCK_FILE="repos.lock"
