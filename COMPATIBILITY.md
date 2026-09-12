@@ -19,7 +19,7 @@ Bump both together: change `repos.lock`, re-verify, and add a row here saying wh
 | `broker`   | `upol-kmi/upcode-broker`     | `abdc95c`  | 2022-12-04 |
 | `cleaner`  | `upol-kmi/upcode-cleaner`    | `0a5e390`  | 2025-07-16 |
 | `web-app`  | `ReCodEx/web-app` (upstream) | `fc6fdaf`  | 2026-08-01 |
-| `web-next` | `upol-kmi/upcode-web-ui`     | `542b510`  | 2026-09-11 |
+| `web-next` | `upol-kmi/upcode-web-ui`     | `fcb7d9a`  | 2026-09-11 |
 
 **How it was verified.** The database and file storage were wiped and rebuilt from the api
 entrypoint's fresh-database path, then seeded (`pnpm seed`). Against that instance the new
