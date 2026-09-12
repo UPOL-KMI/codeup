@@ -50,6 +50,13 @@ parameters:
     from: "${MAIL_FROM}"
     defaultAdminTo: "${ADMIN_EMAIL}"
 
+    # Who the mail is from, as the reader sees it. Upstream defaults every one of these to
+    # ReCodEx, which is why a deployment that renames itself still sent "ReCodEx - " subjects and
+    # greeted people on somebody else's behalf. `siteName` reaches the templates themselves.
+    siteName: "${RECODEX_TITLE}"
+    subjectPrefix: "${RECODEX_TITLE} - "
+    githubUrl: https://github.com/UPOL-KMI
+
   exercises:
     testCountLimit: 100
     exerciseFileCountLimit: 200

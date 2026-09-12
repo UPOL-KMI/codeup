@@ -22,7 +22,7 @@
 # tip carries a README commit that was not part of the verified build. Code-identical, but this
 # file is about what was actually run.
 
-api        7471b71f7189468ee287a292786d8497ed908020   # UPOL-KMI/upcode-api, base of `upcode`
+api        e50956f69a159b86183d4e12ca3bc53f106e8559   # UPOL-KMI/upcode-api, tip of `upcode`
 web-app    fc6fdaf0f3144a9acb9c702e379cb8fe1eb13413   # ReCodEx/web-app (not forked -- see below)
 worker     f267aa9d46aa908c56632af351d51f140de7e01c   # UPOL-KMI/upcode-worker, base of `upcode`
 broker     abdc95cfad4586a9cd2f17bdd5fdaa48cc60445d   # UPOL-KMI/upcode-broker
