@@ -114,11 +114,16 @@ build inputs: shallow, and always forced to the pinned revision.
 ```
 
 `api`, `broker`, and `worker` all embed the public domain into URLs they generate for each
-other (e.g. workers download submissions via the public `/api/v1/worker-files/...` URL, the
-same way they would if workers ran on entirely separate physical machines in a bigger
-deployment). Inside `docker-compose.yaml` the `proxy` service is given a network alias equal
-to `APP_DOMAIN`, so this resolves correctly over the internal Docker network without needing
-real DNS to be live yet — useful for testing before you've pointed a domain at the server.
+other. Inside `docker-compose.yaml` the `proxy` service is given a network alias equal to
+`APP_DOMAIN`, so this resolves correctly over the internal Docker network without needing real
+DNS to be live yet — useful for testing before you've pointed a domain at the server.
+
+**Except where a worker fetches files, which has its own address.** `API_INTERNAL_ADDRESS`
+(default `http://proxy/api`) is what core-api puts in the job a worker picks up, and what the
+worker uploads its results to. The alias trick cannot cover this case: with `APP_DOMAIN=localhost`
+there is nothing to alias — `localhost` in a container is that container — and every submission
+fails to download with "Couldn't connect to server". On a deployment with a real domain the two
+addresses may be the same; they are separate variables so that they *can* differ.
 
 ## Quick start
 

@@ -4,7 +4,7 @@ set -euo pipefail
 WORKER_ID="${WORKER_ID:-1}"
 CONFIG_PATH="/etc/recodex/worker/config-${WORKER_ID}.yml"
 
-envsubst '$WORKER_ID $BROKER_URI $WORKER_HWGROUP $API_ADDRESS $WORKER_FILES_AUTH_USER $WORKER_FILES_AUTH_PASSWORD $LOG_LEVEL' \
+envsubst '$WORKER_ID $BROKER_URI $WORKER_HWGROUP $API_ADDRESS $API_INTERNAL_ADDRESS $WORKER_FILES_AUTH_USER $WORKER_FILES_AUTH_PASSWORD $LOG_LEVEL' \
     < /etc/recodex/worker/config.yml.template > "$CONFIG_PATH"
 
 # --- cgroup delegation for isolate 2.x ---

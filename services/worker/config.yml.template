@@ -18,7 +18,9 @@ headers:
 hwgroup: "${WORKER_HWGROUP}"
 working-directory: "/var/recodex-worker-wd"
 file-managers:
-    - hostname: "${API_ADDRESS}"
+    # The internal address, not the public one: this is the worker talking to the core over the
+    # compose network, and the public domain need not resolve here at all.
+    - hostname: "${API_INTERNAL_ADDRESS}"
       username: "${WORKER_FILES_AUTH_USER}"
       password: "${WORKER_FILES_AUTH_PASSWORD}"
 file-cache:

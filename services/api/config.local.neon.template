@@ -1,6 +1,13 @@
 parameters:
   api:
     address: "${API_ADDRESS}"
+    # **Where a worker fetches submissions from, which is not the public address.** The public one
+    # is embedded in links people click; this one has to resolve *inside* the compose network. They
+    # are the same thing on a deployment with a real domain (the `proxy` service answers to it
+    # either way), and they are not when the domain is `localhost` -- which resolves, in every
+    # container, to that container. A worker then reports "Couldn't connect to server" and the
+    # submission fails through no fault of the student's.
+    workerAddress: "${API_INTERNAL_ADDRESS}"
 
   webapp:
     address: "${WEBAPP_ADDRESS}"
