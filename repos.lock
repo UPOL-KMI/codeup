@@ -18,18 +18,17 @@
 # (`ISOLATE_REF=upcode ./pull-repos.sh`); when a change is verified, bump the commit here and say
 # what was verified in COMPATIBILITY.md.
 #
-# Note that `api` is pinned to the base of its `upcode` branch rather than to the branch tip: the
-# tip carries a README commit that was not part of the verified build. Code-identical, but this
-# file is about what was actually run.
+# Both `api` and `web-next` are pinned to the branch tips that were built and run for the
+# verification recorded in COMPATIBILITY.md.
 
-api        7a67d5b4329a7a869df7413b535c57115135bec1   # UPOL-KMI/upcode-api, tip of `upcode`
+api        4d025fa69bb46fdec63551034742a9c7a4e996c2   # UPOL-KMI/upcode-api, tip of `upcode`
 web-app    fc6fdaf0f3144a9acb9c702e379cb8fe1eb13413   # ReCodEx/web-app (not forked -- see below)
 worker     f267aa9d46aa908c56632af351d51f140de7e01c   # UPOL-KMI/upcode-worker, base of `upcode`
 broker     abdc95cfad4586a9cd2f17bdd5fdaa48cc60445d   # UPOL-KMI/upcode-broker
 monitor    e6f8a1dd25c5837c0aef5019b91e5987bfc15c85   # UPOL-KMI/upcode-monitor
 isolate    25d3f48882a08bee1d348476e9ed3af205dc1316   # UPOL-KMI/upcode-isolate, base of `upcode`
 cleaner    0a5e390241866fac52755098fc2cb3882e106e83   # UPOL-KMI/upcode-cleaner
-web-next   0cca4a2b184af29c8d9bf092a4324a65e3fcdef0   # UPOL-KMI/upcode-web-ui
+web-next   71da76ec174d38b2d5cad4b1792e7376c599a833   # UPOL-KMI/upcode-web-ui, tip of `x-012-pipeline-tuning`
 
 # `web-app` is the one repository taken straight from upstream. It is the legacy frontend, which
 # `web-next` exists to replace, so nothing of ours will ever change in it -- forking it would mean

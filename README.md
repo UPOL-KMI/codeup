@@ -258,6 +258,41 @@ folder into the `curl` loop in `services/api/Dockerfile`, then `docker compose b
 --yes /opt/recodex-runtimes/<new-package>.zip` once by hand — the entrypoint only auto-runs
 imports on a brand new (unseeded) database.
 
+## What to ask for when requesting a VM
+
+Measured on a running instance of this stack, not estimated.
+
+| | minimum | recommended |
+| --- | --- | --- |
+| vCPU | 4 | **8** |
+| RAM | 4 GB | **8 GB** |
+| Disk | 50 GB | **100 GB** |
+
+**CPU.** `threads: 1` in the worker config means one submission is evaluated at a time, each up to
+30 s of wall time, so one core is effectively reserved for it and the rest serves PHP-FPM, MySQL,
+Node and nginx. Raising `threads` to *N* needs *N* more cores and *N* times the sandbox memory.
+More important than the count: **ask for dedicated cores, not shared vCPU on an oversubscribed
+host** — time limits are measured in wall time, and a core contended by somebody else's VM gives
+students spurious timeouts that nobody can reproduce.
+
+**RAM.** All nine containers idle at about 660 MB together (MySQL 160, web-next 141, broker 109,
+web-app 88, api 72, the rest smaller). Under load MySQL's buffer pool and the FPM pool grow, and
+each running evaluation is capped at **1 GiB** by `limits.memory` in the worker config.
+
+**Disk.** The images come to about 6.2 GB, of which the worker alone is 2.8 GB (it carries the
+language toolchains, including a Python built from source). Budget roughly 10 GB for the OS, 25 GB
+for images and build cache — building the worker image is the demanding part — and the rest for
+data: the database, submitted solutions and result archives, which grow by a few GB a year for a
+few hundred students.
+
+**Two things that are easy to leave out of the request and hard to add afterwards:**
+
+- The worker runs `privileged: true` with `cgroup: host` (see *The sandbox needs cgroup v2*), which
+  some hosting policies forbid. Say so explicitly, and **ask for a real VM (KVM) rather than an LXC
+  container** — isolate cannot create its cgroups inside a nested container.
+- Outbound SMTP. Without it no notification is ever delivered; faculty networks often block 587 and
+  expect a relay.
+
 ## Scaling workers
 
 Add more worker instances by copying the `worker` service block in `docker-compose.yaml`
