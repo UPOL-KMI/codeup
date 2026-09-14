@@ -17,6 +17,15 @@
 # business of tracking a moving target. For day-to-day work on a fork, pass the branch yourself
 # (`ISOLATE_REF=upcode ./pull-repos.sh`); when a change is verified, bump the commit here and say
 # what was verified in COMPATIBILITY.md.
+
+# **Where our commits go.** On every fork of an upstream ReCodEx repository -- api, worker, isolate
+# -- our work lives on a branch called `upcode`, and `master` is left as the upstream mirror so it
+# can keep being pulled. `web-next` is the exception and not an inconsistency: it is our own
+# repository with no upstream at all, so it has no `master` to diverge from and its branch is
+# `main`. `broker`, `monitor` and `cleaner` are forks we have not had to change yet and so have no
+# `upcode` branch -- **make one before committing to them.** They are checked out here on a local
+# branch called `pinned`, which `pull-repos.sh` force-resets on every run: a commit left there is
+# lost at the next pull, silently. `web-app` is not forked at all (see the note at the foot).
 #
 # Both `api` and `web-next` are pinned to the branch tips that were built and run for the
 # verification recorded in COMPATIBILITY.md.
